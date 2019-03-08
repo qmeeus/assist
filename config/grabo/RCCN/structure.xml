@@ -26,6 +26,7 @@
     <rel_angle supertype="enumerable">
       west
       east
+      north
       south
     </rel_angle>
     <abs_angle supertype="enumerable">
