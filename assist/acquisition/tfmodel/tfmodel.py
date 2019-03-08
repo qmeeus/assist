@@ -176,6 +176,13 @@ class TFModel(Model):
                 options=run_options,
                 run_metadata=run_metadata)
             print 'step %d: loss = %f' % (i, l)
+
+            #Early stopping
+            if i == 0:
+                base_l = l
+            if l <= base_l * float(self.conf['early_stop']):
+                break
+
             writer.add_summary(s, i)
             if i == 'a':
                 writer.add_run_metadata(run_metadata, 'statistics')
