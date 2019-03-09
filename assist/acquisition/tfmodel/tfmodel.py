@@ -48,7 +48,9 @@ class TFModel(Model):
         tasks = [read_task(task) for task in tasks]
 
         #encode the tasks
-        vs = np.array([self.coder.encode(t) for t in tasks])
+        noisetype = self.coder.conf['noisetype']
+        noiseprob = float(self.coder.conf['noiseprob'])
+        vs = np.array([self.coder.encode(t,noisetype,noiseprob) for t in tasks])
 
         if self.conf['batch_size'] == 'None':
             batch_size = features.shape[0]

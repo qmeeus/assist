@@ -15,7 +15,7 @@ def main(expdir, recipe, computing):
     if os.path.isdir(expdir):
         text = ''
         while text not in ('y', 'n'):
-            text = raw_input('%s allready exists, do you want to overwite '
+            text = raw_input('%s already exists, do you want to overwite '
                              '(the directory will be removed)? '
                              '(y or n)' % expdir)
         if text == 'n':

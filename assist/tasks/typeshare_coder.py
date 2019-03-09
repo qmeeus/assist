@@ -4,6 +4,7 @@ contains the TypeShareCoder class'''
 import numpy as np
 from assist.tasks.read_task import Task
 import coder
+import random
 
 class TypeShareCoder(coder.Coder):
     ''' a Coder that shares the places for args with the same type'''
@@ -34,11 +35,18 @@ class TypeShareCoder(coder.Coder):
         #save the number of labels
         self.numlabels = index
 
-    def encode(self, task):
+    def encode(self, task, noisetype = 'None', noiseprob = 0.0):
         '''encode the task representation into a vector
 
         Args:
             task: the task reresentation as a Task object
+            noisetype:
+                'None': noise-free encoding; noiseprob ignored
+                'Deletion': one of the 1-s in the encoded vector replaced with 0 w.p. noiseprob
+                'Insertion': one of the 0-s in the encoded vector replaced with 1 w.p. noiseprob
+                'Value': EVERY encoded slot value is replaced with another valid one (same task) w.p. noiseprob.
+                    Note the correct slot value cannot be drawn. If there is only one possible value for the slot, it is deleted.
+            noiseprob: 0.0 ... 1.0
 
         Returns:
             the encoded task representation as a numpy array
@@ -63,7 +71,25 @@ class TypeShareCoder(coder.Coder):
         #put the argument indices to one
         for arg in task.args:
             argtype = self.structure.tasks[task.name][arg]
-            vector[self.typeindices[argtype][task.args[arg]]] = 1
+            if noisetype == 'Value' and random.random() < noiseprob:
+                siblings = self.typeindices[argtype]
+                if len(siblings) > 1:
+                    del siblings[task.args[arg]] # remove true value
+                    vector[random.choice(siblings.values())] = 1
+            else:
+                vector[self.typeindices[argtype][task.args[arg]]] = 1
+
+        if noisetype == 'Deletion':
+            #select a 1 from vector
+            victim = random.choice(np.nonzero(vector)[0])
+            if random.random() < noiseprob:
+                vector[victim] = 0
+
+        elif noisetype == 'Insertion':
+            #select a 0 from vector
+            victim = random.choice(np.argwhere(vector == 0))
+            if random.random() < noiseprob:
+                vector[victim] = 1
 
         return vector
 

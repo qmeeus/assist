@@ -34,11 +34,14 @@ class Coder(object):
         self.conf = dict(conf.items('coder'))
 
     @abstractmethod
-    def encode(self, task):
+    def encode(self, task, noisetype, noiseprob):
         '''encode the task representation into a vector
 
         Args:
             task: the task reresentation as a Task object
+            noisetype: string specifying the type of noise to be added to the labels
+                e.g. None, Value, Insertion, Deletion
+            noiseprob: probability of making an encodong error
 
         Returns:
             the encoded task representation as a numpy array
