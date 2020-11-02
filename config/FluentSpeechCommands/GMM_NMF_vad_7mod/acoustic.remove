@@ -1,0 +1,11 @@
+[acoustic]
+#a gmm acoustic model
+name = gmm
+#the number of components in the gmm
+components = 100
+#the covariance type, one of full, tied, diag or spherical
+covariance_type = diag
+#the maximum number of iterations for training
+max_iter = 100
+#pretrain the acoustics
+pretrain = False

@@ -1,0 +1,99 @@
+[pp10]
+#location of the audio file containing a list of all wav files
+audio = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp10/wav.scp
+#a directory where the features should be stored
+features = /esat/spchtemp/scratch/hvanhamm/assist/features/grabo/mfcc19/pp10
+#location of the task file containing a list the tasks
+tasks = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp10/tasks
+
+
+[pp11]
+#location of the audio file containing a list of all wav files
+audio = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp11/wav.scp
+#a directory where the features should be stored
+features = /esat/spchtemp/scratch/hvanhamm/assist/features/grabo/mfcc19/pp11
+#location of the task file containing a list the tasks
+tasks = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp11/tasks
+
+
+[pp12]
+#location of the audio file containing a list of all wav files
+audio = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp12/wav.scp
+#a directory where the features should be stored
+features = /esat/spchtemp/scratch/hvanhamm/assist/features/grabo/mfcc19/pp12
+#location of the task file containing a list the tasks
+tasks = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp12/tasks
+
+
+[pp2]
+#location of the audio file containing a list of all wav files
+audio = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp2/wav.scp
+#a directory where the features should be stored
+features = /esat/spchtemp/scratch/hvanhamm/assist/features/grabo/mfcc19/pp2
+#location of the task file containing a list the tasks
+tasks = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp2/tasks
+
+
+[pp3]
+#location of the audio file containing a list of all wav files
+audio = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp3/wav.scp
+#a directory where the features should be stored
+features = /esat/spchtemp/scratch/hvanhamm/assist/features/grabo/mfcc19/pp3
+#location of the task file containing a list the tasks
+tasks = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp3/tasks
+
+
+[pp4]
+#location of the audio file containing a list of all wav files
+audio = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp4/wav.scp
+#a directory where the features should be stored
+features = /esat/spchtemp/scratch/hvanhamm/assist/features/grabo/mfcc19/pp4
+#location of the task file containing a list the tasks
+tasks = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp4/tasks
+
+
+[pp5]
+#location of the audio file containing a list of all wav files
+audio = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp5/wav.scp
+#a directory where the features should be stored
+features = /esat/spchtemp/scratch/hvanhamm/assist/features/grabo/mfcc19/pp5
+#location of the task file containing a list the tasks
+tasks = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp5/tasks
+
+
+[pp6]
+#location of the audio file containing a list of all wav files
+audio = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp6/wav.scp
+#a directory where the features should be stored
+features = /esat/spchtemp/scratch/hvanhamm/assist/features/grabo/mfcc19/pp6
+#location of the task file containing a list the tasks
+tasks = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp6/tasks
+
+
+[pp7]
+#location of the audio file containing a list of all wav files
+audio = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp7/wav.scp
+#a directory where the features should be stored
+features = /esat/spchtemp/scratch/hvanhamm/assist/features/grabo/mfcc19/pp7
+#location of the task file containing a list the tasks
+tasks = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp7/tasks
+
+
+[pp8]
+#location of the audio file containing a list of all wav files
+audio = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp8/wav.scp
+#a directory where the features should be stored
+features = /esat/spchtemp/scratch/hvanhamm/assist/features/grabo/mfcc19/pp8
+#location of the task file containing a list the tasks
+tasks = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp8/tasks
+
+
+[pp9]
+#location of the audio file containing a list of all wav files
+audio = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp9/wav.scp
+#a directory where the features should be stored
+features = /esat/spchtemp/scratch/hvanhamm/assist/features/grabo/mfcc19/pp9
+#location of the task file containing a list the tasks
+tasks = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp9/tasks
+
+

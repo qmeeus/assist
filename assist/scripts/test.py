@@ -61,7 +61,11 @@ def main(expdir):
 
     print 'testing the model'
 
-    #decode the test uterances
+    #decode the test utterances
+    for k,f in features.items():
+        if (f.shape[0]<5) or (not np.isfinite(f).all()):
+            del features[k]
+            del references[k]
     decoded = model.decode(features)
 
     #write the decoded tasks to disc
