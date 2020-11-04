@@ -42,6 +42,10 @@ class TFModel(Model):
         #create the graph
         graph = tf.Graph()
 
+        for k in examples.keys():
+            if (examples[k][0].shape[0]<=5) or not np.isfinite(examples[k][0]).all():
+                del examples[k]
+
         features, tasks = zip(*examples.values())
 
         #read all the tasks
@@ -51,6 +55,8 @@ class TFModel(Model):
         noisetype = self.coder.conf['noisetype']
         noiseprob = float(self.coder.conf['noiseprob'])
         vs = np.array([self.coder.encode(t,noisetype,noiseprob) for t in tasks])
+
+        #encode the speaker: split of examples.keys() door '_'
 
         if self.conf['batch_size'] == 'None':
             batch_size = features.shape[0]
@@ -75,9 +81,12 @@ class TFModel(Model):
                 name='targets')
 
             #apply the model
-            probs = self.model(inputs, seq_length)
+            #labelprobs, spkprobs = self.model(inputs, seq_length)
+            labelprobs = self.model(inputs, seq_length)
 
-            loss = self.loss(targets, probs)
+            #spkweight = float(self.conf['speakerweight'])
+            #loss = self.loss(targets, labelprobs) + spkweight * self.spkloss(targetspk, spkprobs)
+            loss = self.loss(targets, labelprobs)
 
             #count the number of parameters
             num_params = 0

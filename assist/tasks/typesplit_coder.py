@@ -3,7 +3,7 @@ contains the TypeSplitCoder class'''
 
 import numpy as np
 from assist.tasks.read_task import Task
-import coder
+from assist.tasks import coder
 import random
 
 class TypeSplitCoder(coder.Coder):
@@ -137,11 +137,11 @@ class TypeSplitCoder(coder.Coder):
             for arg in self.argindices[task]:
                 if arg == 'task':
                     continue
-                argvec = vector[self.argindices[task][arg].values()]
+                argvec = vector[list(self.argindices[task][arg].values())]
                 if not np.any(argvec):
                     continue
                 argid = np.argmax(argvec)
-                args[arg] = self.argindices[task][arg].keys()[argid]
+                args[arg] = list(self.argindices[task][arg])[argid]
 
             if not args and self.structure.tasks[task]:
                 if self.conf['tasklabel'] == 'True':
@@ -168,7 +168,7 @@ class TypeSplitCoder(coder.Coder):
             ids = {}
         for task in self.argindices:
             for arg in self.argindices[task]:
-                ids['.'.join([task, arg])] = self.argindices[task][arg].values()
+                ids['.'.join([task, arg])] = list(self.argindices[task][arg].values())
 
         return ids
 

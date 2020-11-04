@@ -5,7 +5,7 @@ import os
 import sys
 sys.path.append(os.getcwd())
 import argparse
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import test
 
 def main(expdir, recipe, computing):

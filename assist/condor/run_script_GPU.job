@@ -4,11 +4,11 @@ Universe         = vanilla
 requestCpus      = 1
 RequestMemory    = 4G
 request_GPUs      = 1
-#request one hour of wall time
-+RequestWalltime = 3600
+# in seconds
++RequestWalltime = 15000
 
 Requirements = (CUDACapability >= 3.0)\
-  &&(CUDAGlobalMemoryMb >= 6000)
+  &&(CUDAGlobalMemoryMb >= 6000) && (machine != "lesath.esat.kuleuven.be") && (machine != "ruchba.esat.kuleuven.be")
 
 #Specfy nice user behavior
 NiceUser = false

@@ -6,7 +6,7 @@ import os
 import sys
 sys.path.append(os.getcwd())
 import argparse
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import numpy as np
 from assist.tasks.structure import Structure
 from assist.tasks import coder_factory
@@ -19,7 +19,7 @@ def main(expdir):
 
     #check if this experiment has been completed
     if os.path.exists(os.path.join(expdir, 'f1')):
-        print 'result found %s' % expdir
+        print('result found %s' % expdir)
         return
 
     #read the acquisition config file
@@ -41,10 +41,10 @@ def main(expdir):
     model = model_factory.factory(acquisitionconf.get('acquisition', 'name'))(
         acquisitionconf, coder, expdir)
 
-    print 'loading model'
+    print('loading model')
     model.load(os.path.join(expdir, 'model'))
 
-    print 'prepping testing data'
+    print('prepping testing data')
 
     #load the testing features
     features = dict()
@@ -59,9 +59,13 @@ def main(expdir):
         splitline = line.strip().split(' ')
         references[splitline[0]] = read_task.read_task(' '.join(splitline[1:]))
 
-    print 'testing the model'
+    print('testing the model')
 
-    #decode the test uterances
+    #decode the test utterances
+    for k,f in features.items():
+        if (f.shape[0]<5) or (not np.isfinite(f).all()):
+            del features[k]
+            del references[k]
     decoded = model.decode(features)
 
     #write the decoded tasks to disc
@@ -72,12 +76,12 @@ def main(expdir):
     (precision, recal, f1, macroprec, macrorecall, macrof1), scores = \
         score.score(decoded, references)
 
-    print 'precision: %f' % precision
-    print 'recal: %f' % recal
-    print 'f1: %f' % f1
-    print 'macro precision: %f' % macroprec
-    print 'macro recal: %f' % macrorecall
-    print 'macro f1: %f' % macrof1
+    print('precision: %f' % precision)
+    print('recal: %f' % recal)
+    print('f1: %f' % f1)
+    print('macro precision: %f' % macroprec)
+    print('macro recal: %f' % macrorecall)
+    print('macro f1: %f' % macrof1)
 
     with open(os.path.join(expdir, 'precision'), 'w') as fid:
         fid.write(str(precision))
@@ -102,3 +106,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args.expdir)
+

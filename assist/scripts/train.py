@@ -6,11 +6,13 @@ import os
 import sys
 sys.path.append(os.getcwd())
 import argparse
-from ConfigParser import ConfigParser
+import random
+from configparser import ConfigParser
 import numpy as np
 from assist.tasks.structure import Structure
 from assist.tasks import coder_factory
 from assist.acquisition import model_factory
+from assist.tools import tools
 
 def main(expdir):
     '''main function'''
@@ -38,9 +40,20 @@ def main(expdir):
     model = model_factory.factory(acquisitionconf.get('acquisition', 'name'))(
         acquisitionconf, coder, expdir)
 
-    print 'prepping training data'
+    print('prepping training data')
 
-    #load the training features
+    trainconf = ConfigParser()
+    trainconf.read(os.path.join(expdir, 'train.cfg'))
+    #apply the defaults
+    default = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)),
+        'defaults','train.cfg')
+    if os.path.exists(default):
+        tools.default_conf(trainconf, default)
+
+    trainconf = dict(trainconf.items('train'))
+
+    # load the training features
     features = dict()
     for line in open(os.path.join(expdir, 'trainfeats')):
         splitline = line.strip().split(' ')
@@ -49,14 +62,20 @@ def main(expdir):
 
     #read the traintasks
     taskstrings = dict()
-    for line in open(os.path.join(expdir, 'traintasks')):
-        splitline = line.strip().split(' ')
-        taskstrings[splitline[0]] = ' '.join(splitline[1:])
+    with open(os.path.join(expdir, 'traintasks')) as f:
+        lines = f.readlines()
+        newlen = int(float(trainconf['sample'])*len(lines)+0.5)
+        if (newlen < len(lines)) and (newlen > 0):
+            lines = random.sample(lines,newlen)
+        for line in lines:
+            splitline = line.strip().split(' ')
+            taskstrings[splitline[0]] = ' '.join(splitline[1:])
 
     #create lists of features and training tasks
-    examples = {utt: (features[utt], taskstrings[utt]) for utt in taskstrings}
+    #examples = {utt: (features[utt], taskstrings[utt]) for utt in taskstrings}
+    examples = {utt: (features[utt], taskstrings[utt]) for utt in taskstrings if utt in features}
 
-    print 'training acquisition model'
+    print('training acquisition model')
     model.train(examples)
 
     #save the trained model

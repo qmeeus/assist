@@ -1,9 +1,9 @@
 # Normal execution
 Universe         = vanilla
 requestCpus      = 4
-RequestMemory    = 16G
+RequestMemory    = 96G
 #request a day of wall time
-+RequestWalltime = 86400
++RequestWalltime = 200000
 Requirements = has_avx\
   &&(machine != "zulte.esat.kuleuven.be")
 

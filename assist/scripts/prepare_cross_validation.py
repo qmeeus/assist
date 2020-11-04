@@ -6,8 +6,8 @@ import sys
 sys.path.append(os.getcwd())
 import shutil
 import argparse
-import cPickle as pickle
-from ConfigParser import ConfigParser
+import pickle
+from configparser import ConfigParser
 import random
 import itertools
 import numpy as np
@@ -23,11 +23,13 @@ def main(expdir, recipe, computing):
 
     overwrite = False
     if os.path.isdir(expdir):
-        text = ''
+        text = 'r' #normally ''
         while text not in ('o', 'r'):
-            text = raw_input('%s already exists, do you want to '
-                             'resume experiment (r) or overwrite (o) '
-                             '(respond with o or r)' % expdir)
+            text = input(
+                '%s already exists, do you want to '
+                'resume experiment (r) or overwrite (o) '
+                '(respond with o or r)' % expdir
+            )
         if text == 'o':
             overwrite = True
 
@@ -77,7 +79,7 @@ def main(expdir, recipe, computing):
 
     for speaker in dataconf.sections():
 
-        print 'speaker: %s' % (speaker)
+        print('speaker: %s' % speaker)
 
         #create the speaker directory
         if os.path.isdir(os.path.join(expdir, speaker)):
@@ -94,6 +96,18 @@ def main(expdir, recipe, computing):
         coder = coder_factory.factory(coderconf.get('coder', 'name'))(
             structure, coderconf)
 
+        #read the feature files
+        features = dict()
+        for l in open(os.path.join(dataconf.get(speaker, 'features'), 'feats')):
+            splitline = l.strip().split(' ')
+            features[splitline[0]] = ' '.join(splitline[1:])
+
+        if list(features.keys())[0].startswith("pp"):
+            features = {
+                "_".join(key.split("_")[1:]): path
+                for key, path in features.items()
+            }
+
         #read and code all the tasks
         labelvecs = []
         names = []
@@ -101,11 +115,14 @@ def main(expdir, recipe, computing):
         for line in open(dataconf.get(speaker, 'tasks')):
             splitline = line.strip().split(' ')
             name = splitline[0]
-            names.append(name)
-            taskstring = ' '.join(splitline[1:])
-            taskstrings[name] = taskstring
-            task = read_task(taskstring)
-            labelvecs.append(coder.encode(task))
+            if name in features.keys():
+                names.append(name)
+                taskstring = ' '.join(splitline[1:])
+                taskstrings[name] = taskstring
+                task = read_task(taskstring)
+                labelvecs.append(coder.encode(task))
+            else:
+                print("\n\nLost %s \n\n" % (name) )
 
         #devide the data into blocks
         blocksfile = os.path.join(expdir, speaker, 'blocks.pkl')
@@ -133,23 +150,19 @@ def main(expdir, recipe, computing):
                 testids[b][e] = [x for x in range(len(names))
                                  if x not in trainids[b][e]]
 
-        #read the feature files
-        features = dict()
-        for l in open(os.path.join(dataconf.get(speaker, 'features'), 'feats')):
-            splitline = l.strip().split(' ')
-            features[splitline[0]] = ' '.join(splitline[1:])
-
         #create an expdir for each experiment
         b = int(expconf['startblocks']) - 1
 
         while True:
-            for e in range(int(expconf['numexp'])):
+            multisubexpdir = os.path.join(expdir, speaker,
+                                         '%dblocks_exp' % (b+1))
+            nexp = int(expconf['numexp'])
+            for e in range(nexp):
 
-                print 'train blocks: %d, experiment %s' % (b+1, e)
+                print('train blocks: %d, experiment %s' % (b+1, e))
 
                 #creat the directory
-                subexpdir = os.path.join(expdir, speaker,
-                                         '%dblocks_exp%d' % (b+1, e))
+                subexpdir = multisubexpdir+'%d' % (e)
 
                 if os.path.exists(os.path.join(subexpdir, 'f1')):
                     continue
@@ -166,9 +179,13 @@ def main(expdir, recipe, computing):
                               os.path.join(subexpdir, 'structure.xml'))
 
                 if not os.path.exists(os.path.join(subexpdir, 'trainfeats')):
-                    trainutts = [names[i] for i in trainids[b][e]]
-                    print 'number of examples: %d' % len(trainutts)
-                    testutts = [names[i] for i in testids[b][e]]
+                    trainutts = [names[i] for i in trainids[b][e] if i < len(names)]
+                    if len(trainutts) != len(trainids[b][e]):
+                        print("\n\nLost %d training utterances\n\n" % (len(trainids[b][e]) - len(trainutts)) )
+                    print('number of examples: %d' % len(trainutts))
+                    testutts = [names[i] for i in testids[b][e] if i < len(names)]
+                    if len(testutts) != len(testids[b][e]):
+                        print("\n\nLost %d test utterances\n\n" % (len(testids[b][e]) - len(testutts)) )
 
                     #create the train and test sets
                     tools.writefile(
@@ -185,30 +202,32 @@ def main(expdir, recipe, computing):
                         {utt: taskstrings[utt] for utt in testutts})
 
                 if computing in ('condor', 'condor_gpu'):
-                    #create the outputs directory
+                    # create the outputs directory
                     if not os.path.isdir(os.path.join(subexpdir, 'outputs')):
                         os.makedirs(os.path.join(subexpdir, 'outputs'))
-
-                    if computing == 'condor_gpu':
-                        jobfile = 'run_script_GPU.job'
-                    else:
-                        jobfile = 'run_script.job'
-
-                    #only submit the job if it not running yet
-                    in_queue = os.popen(
-                        'if condor_q -nobatch -wide | grep -q %s; '
-                        'then echo true; else echo false; fi' %
-                        subexpdir).read().strip() == 'true'
-
-                    #submit the condor job
-                    if not in_queue:
-                        os.system('condor_submit expdir=%s script=train_test'
-                                  ' assist/condor/%s'
-                                  % (subexpdir, jobfile))
                 else:
                     train_test.main(subexpdir)
 
-            newb = (b + 1)*int(expconf['scale']) + int(expconf['increment']) - 1
+            if computing in ('condor', 'condor_gpu'):
+
+                if computing == 'condor_gpu':
+                    jobfile = 'run_multiscript_GPU.job'
+                else:
+                    jobfile = 'run_multiscript.job'
+
+                #only submit the job if it not running yet
+                in_queue = os.popen(
+                    'if condor_q -nobatch -wide | grep -q %s; '
+                    'then echo true; else echo false; fi' %
+                    multisubexpdir).read().strip() == 'true'
+
+                #submit the condor job
+                if not in_queue:
+                    os.system('condor_submit expdir=%s script=train_test'
+                              ' numexp=%d assist/condor/%s'
+                              % (multisubexpdir, nexp, jobfile))
+
+            newb = (b + 1) * int(expconf['scale']) + int(expconf['increment']) - 1
             newb = min(newb, len(blocks) - 2)
             if b == newb:
                 break

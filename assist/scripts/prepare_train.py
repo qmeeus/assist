@@ -6,7 +6,7 @@ import sys
 sys.path.append(os.getcwd())
 import shutil
 import argparse
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import train
 
 def main(expdir, recipe, computing):
@@ -29,6 +29,8 @@ def main(expdir, recipe, computing):
                     os.path.join(expdir, 'acquisition.cfg'))
     shutil.copyfile(os.path.join(recipe, 'coder.cfg'),
                     os.path.join(expdir, 'coder.cfg'))
+    shutil.copyfile(os.path.join(recipe, 'train.cfg'),
+                    os.path.join(expdir, 'train.cfg'))
     shutil.copyfile(os.path.join(recipe, 'structure.xml'),
                     os.path.join(expdir, 'structure.xml'))
 

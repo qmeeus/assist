@@ -11,7 +11,7 @@ import sys
 import os
 import itertools
 import numpy as np
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 from statsmodels.nonparametric.smoothers_lowess import lowess
 import matplotlib.pyplot as plt
 from get_results import get_results
