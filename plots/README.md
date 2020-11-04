@@ -1,5 +1,7 @@
 # Plotting Interface
 
+**NB: python3 only (python2 is dead anyway)**
+
 ```bash
 $ python -m plots
 

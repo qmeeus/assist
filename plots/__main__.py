@@ -27,12 +27,12 @@ def cli(ctx, format, dpi, overwrite, display):
 
 @cli.command()
 @click.argument("metrics", nargs=-1)
-@click.option("--expdir", required=True, type=click.Path())
+@click.option("--expdir", required=True, type=click.Path(exists=True))
 @click.option("--plot_speakers", is_flag=True, help="Plot speakers separately")
 @click.pass_context
 def learning_curve(ctx, metrics, expdir, plot_speakers):
     fmt, dpi, display = ctx.obj["FORMAT"], ctx.obj["DPI"], ctx.obj["DISPLAY"]
-    expdir = validate_dir(expdir)
+    expdir = Path(expdir)
     savedir = expdir / "figures"
     if savedir.exists() and not ctx.obj["OVERWRITE"]:
         raise ValueError(f"{savedir} exists already. Add --overwrite to overwrite.")
@@ -71,7 +71,7 @@ def learning_curve(ctx, metrics, expdir, plot_speakers):
 
 
 @cli.command()
-@click.argument("expdirs", nargs=-1)
+@click.argument("expdirs", nargs=-1, type=click.Path(exists=True))
 @click.option("--plot_speakers", is_flag=True, help="Plot speakers separately")
 @click.option("--metric", default="f1", type=str, help="Metric to plot")
 @click.option("--remove_incomplete", is_flag=True, help="Remove experiments not performed for all speakers")
@@ -79,7 +79,7 @@ def learning_curve(ctx, metrics, expdir, plot_speakers):
 @click.pass_context
 def compare_results(ctx, expdirs, plot_speakers, metric, remove_incomplete, savedir):
     fmt, dpi, display = ctx.obj["FORMAT"], ctx.obj["DPI"], ctx.obj["DISPLAY"]
-    expdirs = list(map(validate_dir, expdirs))
+    expdirs = list(map(Path, expdirs))
     exp_names = list(map(lambda p: p.name, expdirs))
     savedir = Path(savedir)
     if savedir.exists() and not ctx.obj["OVERWRITE"]:
@@ -144,13 +144,6 @@ def plot_learning_curve(dataframe, metrics, ax=None, label=None):
         ax.plot(x, y, label=label or metric)
 
     return ax
-
-
-def validate_dir(directory):
-    directory = Path(directory)
-    if not directory.exists():
-        raise FileNotFoundError(directory)
-    return directory
 
 
 def read_file(filename):
