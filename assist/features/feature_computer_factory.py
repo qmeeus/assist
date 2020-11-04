@@ -1,7 +1,6 @@
 '''@file feature_computer_factory.py
 contains the FeatureComputer factory'''
 
-from . import mfcc, mfcc_pitch, fbank
 
 def factory(feature):
     '''
@@ -12,10 +11,13 @@ def factory(feature):
     '''
 
     if feature == 'fbank':
-        return fbank.Fbank
+        from .fbank import Fbank
+        return Fbank
     elif feature == 'mfcc':
-        return mfcc.Mfcc
+        from .mfcc import Mfcc
+        return Mfcc
     elif feature == 'mfcc_pitch':
-        return mfcc_pitch.Mfcc_pitch
+        from .mfcc_pitch import Mfcc_pitch
+        return Mfcc_pitch
     else:
         raise Exception('Undefined feature type: %s' % feature)

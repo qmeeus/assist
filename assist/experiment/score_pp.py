@@ -3,7 +3,7 @@ import sys
 sys.path.append(os.getcwd())
 import argparse
 from assist.tasks.read_task import read_task
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import numpy as np
 from assist.tasks.structure import Structure
 from assist.tasks import coder_factory

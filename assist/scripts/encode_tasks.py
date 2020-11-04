@@ -6,7 +6,7 @@ import os
 import sys
 sys.path.append(os.getcwd())
 import argparse
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import numpy as np
 from assist.tasks.structure import Structure
 from assist.tasks import coder_factory
@@ -36,9 +36,9 @@ def main(expdir):
             print(splitline[0] + " : " + taskstring )
             task = read_task(taskstring)
             vs = coder.encode(task).astype(int)
-            print "%d : [" % len(vs),
+            print("%d : [" % len(vs))
             sys.stdout.write(" ".join(str(x) for x in vs))
-            print "]\n"
+            print("]\n")
 
 
 

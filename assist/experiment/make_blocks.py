@@ -2,7 +2,7 @@
 contains the make_blocks method'''
 
 import os
-import cPickle as pickle
+import pickle
 import numpy as np
 
 def make_blocks(labelmat, conf, blocksdir):
@@ -21,6 +21,7 @@ def make_blocks(labelmat, conf, blocksdir):
 
     #initialise numblocks as the requested number of blocks
     numblocks = min(int(conf['numblocks']), labelmat.shape[0])
+    labelmat = labelmat.astype(int)
 
     if not os.path.isdir(blocksdir):
         os.makedirs(blocksdir)
@@ -94,8 +95,8 @@ def make_blocks(labelmat, conf, blocksdir):
 
             #find the best swap
             I = np.argmax(gains)
-            uc = I/numblocks
-            bt = I%numblocks
+            uc = I // numblocks
+            bt = I % numblocks
 
             KLD_track = [sum(KLD)]
 
@@ -129,10 +130,11 @@ def make_blocks(labelmat, conf, blocksdir):
                         cb = clab[b] - labelmat[u, :]
                         dist = cb/np.sum(cb)
                         remove_gains[u] = (
-                            KLD[b] -
-                            np.sum(dist[np.nonzero(dist)]
-                                   *np.log(dist[np.nonzero(dist)]
-                                           /Tdist[np.nonzero(dist)])))
+                            KLD[b] - np.sum(
+                                dist[np.nonzero(dist)]
+                                * np.log(dist[np.nonzero(dist)] / Tdist[np.nonzero(dist)])
+                            )
+                        )
 
                 #update the swap costs for all the utterances to the relevant
                 #blocks
@@ -157,8 +159,8 @@ def make_blocks(labelmat, conf, blocksdir):
 
                 #find the best swap
                 I = np.argmax(gains)
-                uc = I/numblocks
-                bt = I%numblocks
+                uc = I // numblocks
+                bt = I % numblocks
 
             #there are no more changes with gain, check if all labels occur in
             #all blocks

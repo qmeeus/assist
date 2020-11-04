@@ -7,7 +7,7 @@ import sys
 sys.path.append(os.getcwd())
 import argparse
 import random
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import numpy as np
 from assist.tasks.structure import Structure
 from assist.tasks import coder_factory
@@ -40,7 +40,7 @@ def main(expdir):
     model = model_factory.factory(acquisitionconf.get('acquisition', 'name'))(
         acquisitionconf, coder, expdir)
 
-    print 'prepping training data'
+    print('prepping training data')
 
     trainconf = ConfigParser()
     trainconf.read(os.path.join(expdir, 'train.cfg'))
@@ -75,7 +75,7 @@ def main(expdir):
     #examples = {utt: (features[utt], taskstrings[utt]) for utt in taskstrings}
     examples = {utt: (features[utt], taskstrings[utt]) for utt in taskstrings if utt in features}
 
-    print 'training acquisition model'
+    print('training acquisition model')
     model.train(examples)
 
     #save the trained model

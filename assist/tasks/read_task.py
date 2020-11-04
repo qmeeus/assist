@@ -18,7 +18,7 @@ def read_task(string):
     #parse the file and get the root
     element = ET.fromstring(string)
     args = element.attrib
-    args = {arg:args[arg] for arg in args if args[arg] != ''}
+    args = {arg: args[arg] for arg in args if args[arg] != ''}
     return Task(name=element.tag, args=args)
 
 def to_string(task):

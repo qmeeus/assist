@@ -25,6 +25,8 @@ def factory(name):
     elif name == 'nmf':
         import nmf
         return nmf.NMF
-
+    elif name == "svm":
+        from assist.acquisition.svm import Classifier
+        return Classifier
     else:
         raise Exception('unknown acquisition type %s' % name)

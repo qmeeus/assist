@@ -3,7 +3,7 @@ contains the TypeShareCoder class'''
 
 import numpy as np
 from assist.tasks.read_task import Task
-import coder
+from assist.tasks import coder
 import random
 
 class TypeShareCoder(coder.Coder):

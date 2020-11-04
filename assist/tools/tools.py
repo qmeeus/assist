@@ -3,7 +3,9 @@ contains some usefull tools for the scripts'''
 
 import os
 import shutil
-from ConfigParser import ConfigParser
+from pathlib import Path
+from configparser import ConfigParser
+
 
 def symlink(source, link_name):
     '''
@@ -14,11 +16,12 @@ def symlink(source, link_name):
         link_name: the path to the link file
     '''
 
-    if os.path.exists(link_name):
+    source, link_name = map(Path, (source, link_name))
+
+    if link_name.exists() or link_name.is_symlink():
         os.remove(link_name)
 
-    os.symlink(source, link_name)
-
+    os.symlink(source.resolve(), link_name)
 
 def safecopy(src, dst):
     '''only copy src to dest if dst does not exits'''

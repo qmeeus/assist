@@ -6,8 +6,8 @@ import sys
 sys.path.append(os.getcwd())
 import shutil
 import argparse
-import cPickle as pickle
-from ConfigParser import ConfigParser
+import pickle
+from configparser import ConfigParser
 import random
 import itertools
 import numpy as np
@@ -25,9 +25,11 @@ def main(expdir, recipe, computing):
     if os.path.isdir(expdir):
         text = 'r' #normally ''
         while text not in ('o', 'r'):
-            text = raw_input('%s already exists, do you want to '
-                             'resume experiment (r) or overwrite (o) '
-                             '(respond with o or r)' % expdir)
+            text = input(
+                '%s already exists, do you want to '
+                'resume experiment (r) or overwrite (o) '
+                '(respond with o or r)' % expdir
+            )
         if text == 'o':
             overwrite = True
 
@@ -77,7 +79,7 @@ def main(expdir, recipe, computing):
 
     for speaker in dataconf.sections():
 
-        print 'speaker: %s' % (speaker)
+        print('speaker: %s' % speaker)
 
         #create the speaker directory
         if os.path.isdir(os.path.join(expdir, speaker)):
@@ -99,6 +101,12 @@ def main(expdir, recipe, computing):
         for l in open(os.path.join(dataconf.get(speaker, 'features'), 'feats')):
             splitline = l.strip().split(' ')
             features[splitline[0]] = ' '.join(splitline[1:])
+
+        if list(features.keys())[0].startswith("pp"):
+            features = {
+                "_".join(key.split("_")[1:]): path
+                for key, path in features.items()
+            }
 
         #read and code all the tasks
         labelvecs = []
@@ -151,7 +159,7 @@ def main(expdir, recipe, computing):
             nexp = int(expconf['numexp'])
             for e in range(nexp):
 
-                print 'train blocks: %d, experiment %s' % (b+1, e)
+                print('train blocks: %d, experiment %s' % (b+1, e))
 
                 #creat the directory
                 subexpdir = multisubexpdir+'%d' % (e)
@@ -174,7 +182,7 @@ def main(expdir, recipe, computing):
                     trainutts = [names[i] for i in trainids[b][e] if i < len(names)]
                     if len(trainutts) != len(trainids[b][e]):
                         print("\n\nLost %d training utterances\n\n" % (len(trainids[b][e]) - len(trainutts)) )
-                    print 'number of examples: %d' % len(trainutts)
+                    print('number of examples: %d' % len(trainutts))
                     testutts = [names[i] for i in testids[b][e] if i < len(names)]
                     if len(testutts) != len(testids[b][e]):
                         print("\n\nLost %d test utterances\n\n" % (len(testids[b][e]) - len(testutts)) )
@@ -219,9 +227,7 @@ def main(expdir, recipe, computing):
                               ' numexp=%d assist/condor/%s'
                               % (multisubexpdir, nexp, jobfile))
 
-
-
-            newb = (b + 1)*int(expconf['scale']) + int(expconf['increment']) - 1
+            newb = (b + 1) * int(expconf['scale']) + int(expconf['increment']) - 1
             newb = min(newb, len(blocks) - 2)
             if b == newb:
                 break

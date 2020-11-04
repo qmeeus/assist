@@ -3,12 +3,13 @@ do all the preparations for the data preparation'''
 
 import os
 import sys
-sys.path.append(os.getcwd())
+sys.path.insert(0, os.getcwd())
 import shutil
 import argparse
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import dataprep
 from assist.tools import tools
+
 
 def main(expdir, recipe, computing):
     '''main function'''
@@ -28,7 +29,7 @@ def main(expdir, recipe, computing):
 
     for speaker in dataconf.sections():
 
-        print '%s data preparation' % speaker
+        print('%s data preparation' % speaker)
 
         #create the experiments directory
         if not os.path.isdir(os.path.join(expdir, speaker)):
@@ -45,7 +46,8 @@ def main(expdir, recipe, computing):
         #put a link to the feature conf
         tools.symlink(
             os.path.join(expdir, 'features.cfg'),
-            os.path.join(expdir, speaker, 'features.cfg'))
+            os.path.join(expdir, speaker, 'features.cfg')
+        )
 
         if computing in ('condor', 'condor_gpu'):
             #create the outputs directory
