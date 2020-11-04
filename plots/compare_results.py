@@ -12,7 +12,8 @@ import itertools
 import numpy as np
 from statsmodels.nonparametric.smoothers_lowess import lowess
 import matplotlib.pyplot as plt
-from get_results import get_results
+from plots.get_results import get_results
+
 
 def main(expdirs, result):
     '''main function'''
@@ -95,7 +96,7 @@ def main(expdirs, result):
             for i, result in enumerate(results):
                 if speaker not in result:
                     continue
-                sort = np.array(result[speaker].values())
+                sort = np.array(list(result[speaker].values()))
                 sort = sort[np.argsort(sort[:, 0], axis=0), :]
                 fit = smooth(sort[:, 1], sort[:, 0])
                 plot = plt.plot(
@@ -143,5 +144,5 @@ def main(expdirs, result):
 
 
 if __name__ == '__main__':
-
     main(sys.argv[2:], sys.argv[1])
+

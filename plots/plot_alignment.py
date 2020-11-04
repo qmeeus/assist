@@ -9,7 +9,7 @@ usage: python plot_alignment.py expdir name
 import sys
 import os
 sys.path.append(os.getcwd())
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import numpy as np
 import matplotlib.pyplot as plt
 from assist.tasks import coder_factory

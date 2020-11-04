@@ -30,7 +30,7 @@ def get_results(expdir, toread):
             expname = '-'.join([speaker, exp])
 
             if not os.path.isfile(os.path.join(exppath, toread)):
-                print 'no result in %s' % exppath
+                print('no result in %s' % exppath)
                 skipped += 1
                 continue
 
