@@ -1,9 +1,0 @@
-[pp10]
-#location of the audio file containing a list of all wav files
-audio = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp10/wav.scp
-#a directory where the features should be stored
-features = /esat/spchtemp/scratch/hvanhamm/assist/features/grabo/mfcc19/pp10
-#location of the task file containing a list the tasks
-tasks = /esat/spchtemp/scratch/vrenkens/assist/data/grabo/pp10/tasks
-
-
