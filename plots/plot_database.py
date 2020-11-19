@@ -51,8 +51,6 @@ def main(expdir, plot_speakers, plot_types, fmt="png", dpi=300):
         results['recal'] = get_results(expdir, 'recal')
     speakers = results['f1'].keys()
 
-    import ipdb; ipdb.set_trace()
-
     #do LOWESS smooting per speaker
     numexamples = {s: np.array(list(r.values()))[:, 0] for s, r in results['f1'].items()}
     results = {t: {s: np.array(list(r.values()))[:, 1] for s, r in results[t].items()}

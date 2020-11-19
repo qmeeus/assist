@@ -5,6 +5,7 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import multiprocessing as mp
 
 from functools import partial
 from pathlib import Path
@@ -14,85 +15,90 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 @click.group()
 @click.option("--format", default="png", type=click.Choice(["png", "eps"]))
 @click.option("--dpi", default=300, type=int)
-@click.option("--overwrite", is_flag=True)
 @click.option("--display", is_flag=True)
+@click.option("--savedir", type=click.Path(), default="exp/figures")
 @click.pass_context
-def cli(ctx, format, dpi, overwrite, display):
+def cli(ctx, format, dpi, display, savedir):
     ctx.ensure_object(dict)
     ctx.obj["FORMAT"] = format
     ctx.obj["DPI"] = dpi
-    ctx.obj["OVERWRITE"] = overwrite
     ctx.obj["DISPLAY"] = display
+    ctx.obj["SAVEDIR"] = Path(savedir)
+    os.makedirs(savedir, exist_ok=True)
 
 
 @cli.command()
-@click.argument("metrics", nargs=-1)
-@click.option("--expdir", required=True, type=click.Path(exists=True))
+@click.argument("expdir", type=click.Path(exists=True))
+@click.option("-m", "--metrics", multiple=True, default=["f1"])
 @click.option("--plot_speakers", is_flag=True, help="Plot speakers separately")
+@click.option("--save_as", type=str, help="Output file", default="learning_curve_{dataset}_{model}")
+@click.option("--overwrite", is_flag=True)
 @click.pass_context
-def learning_curve(ctx, metrics, expdir, plot_speakers):
-    fmt, dpi, display = ctx.obj["FORMAT"], ctx.obj["DPI"], ctx.obj["DISPLAY"]
+def learning_curve(ctx, expdir, metrics, plot_speakers, save_as, overwrite):
+    
+    fmt = ctx.obj["FORMAT"]
+    dpi = ctx.obj["DPI"]
+    display = ctx.obj["DISPLAY"]
+    savedir = ctx.obj["SAVEDIR"]
     expdir = Path(expdir)
-    savedir = expdir / "figures"
-    if savedir.exists() and not ctx.obj["OVERWRITE"]:
-        raise ValueError(f"{savedir} exists already. Add --overwrite to overwrite.")
-    os.makedirs(savedir, exist_ok=True)
 
     results = load_results(expdir, metrics)
     speakers = sorted(results.index.levels[0])
+    save_as = save_as.format(dataset=expdir.parent.name, model=expdir.name)
 
     if plot_speakers:
+        
         for speaker in speakers:
+
             ax = plot_learning_curve(
                 results.xs(speaker, level="speaker"), metrics
             )
 
             ax.set_title(f"Learning curve {expdir.name} {speaker}")
             plt.legend()
-            plt.savefig(savedir / f"curve_{speaker}.{fmt}", dpi=dpi)
+            outfile = savedir/f"{save_as}_{speaker}.{fmt}"
+            savefig(plt.gcf(), outfile, overwrite=overwrite, dpi=dpi)
 
     for metric in metrics:
         ax = None
 
         for speaker in speakers:
             ax = plot_learning_curve(
-                results.xs(speaker, level="speaker"), (metric,), 
+                results.xs(speaker, level="speaker"), (metric,),
                 ax=ax, label=speaker
             )
 
         ax.set_title(f"Learning curve {expdir.name} {metric}")
         plt.legend()
-        plt.savefig(savedir / f"curve_{metric}.{fmt}", dpi=dpi)
+        outfile = savedir/f"{save_as}_all_{metric}.{fmt}"
+        savefig(plt.gcf(), outfile, overwrite=overwrite, dpi=dpi)
 
-    if display:
-        plt.show()
-
+    display and plt.show()
     plt.close("all")
+
 
 
 @cli.command()
 @click.argument("expdirs", nargs=-1, type=click.Path(exists=True))
+@click.option("-m", "--metrics", multiple=True, default=["f1"])
 @click.option("--plot_speakers", is_flag=True, help="Plot speakers separately")
-@click.option("--metric", default="f1", type=str, help="Metric to plot")
 @click.option("--remove_incomplete", is_flag=True, help="Remove experiments not performed for all speakers")
-@click.option("--savedir", type=click.Path(), help="Output directory")
+@click.option("--save_as", type=str, help="Output file", default="compare_{dataset}")
+@click.option("--overwrite", is_flag=True)
 @click.pass_context
-def compare_results(ctx, expdirs, plot_speakers, metric, remove_incomplete, savedir):
-    fmt, dpi, display = ctx.obj["FORMAT"], ctx.obj["DPI"], ctx.obj["DISPLAY"]
+def compare_results(ctx, expdirs, metrics, plot_speakers, remove_incomplete, save_as, overwrite):
+    
+    fmt = ctx.obj["FORMAT"]
+    dpi = ctx.obj["DPI"]
+    display = ctx.obj["DISPLAY"]
+    savedir = ctx.obj["SAVEDIR"]
     expdirs = list(map(Path, expdirs))
-    exp_names = list(map(lambda p: p.name, expdirs))
-    savedir = Path(savedir)
-    if savedir.exists() and not ctx.obj["OVERWRITE"]:
-        raise ValueError(f"{savedir} exists already. Add --overwrite to overwrite.")
-    os.makedirs(savedir, exist_ok=True)
+    expnames = list(map(lambda p: p.name, expdirs))
 
-    metrics = (metric,)
+    save_as = save_as.format(dataset=expdirs[0].parent.name)
 
-    results = pd.concat([
-        load_results(expdir, metrics).rename(columns={metric: exp_name}) 
-        for exp_name, expdir in zip(exp_names, expdirs)
-    ], axis=1)
-
+    results = pd.concat([load_results(expdir, metrics) for expdir in expdirs], axis=1)
+    results.columns = pd.MultiIndex.from_product([expnames, metrics + ("train_size",)])
     results = results.loc[:, ~results.columns.duplicated()]
     speakers = sorted(results.index.levels[0])
 
@@ -102,29 +108,31 @@ def compare_results(ctx, expdirs, plot_speakers, metric, remove_incomplete, save
     if plot_speakers:
         for speaker in speakers:
 
-            ax = plot_learning_curve(
-                results.xs(speaker, level="speaker"), exp_names
-            )
+            view_spkr = results.xs(speaker, level="speaker", axis=0)
 
-            ax.set_title(f"Compare experiences {metric} {speaker}")
+            ax = None
+            for expname in expnames:
+                view_exp = view_spkr.xs(expname, level=0, axis=1)
+                ax = plot_learning_curve(view_exp, metrics, ax=ax)
+
+            ax.set_title(f"Compare {len(expnames)} experiments on {metrics} for {speaker}")
             plt.legend()
-            plt.savefig(savedir / f"compare_{speaker}.{fmt}", dpi=dpi)
+            outfile = savedir/f"{save_as}_{speaker}.{fmt}"
+            savefig(plt.gcf(), outfile, overwrite=overwrite, dpi=dpi)
 
     ax = None
-    for exp_name in exp_names:
-        ax = plot_learning_curve(results, (exp_name,), label=exp_name, ax=ax)
+    for expname in expnames:
+        view_exp = results.xs(expname, level=0, axis=1)
+        labels = [f"{expname} ({metric})" for metric in metrics]
+        ax = plot_learning_curve(view_exp, metrics, labels=labels, ax=ax)
 
-    ax.set_title(f"Compare experiences {metric}")
+    ax.set_title(f"Compare {len(expnames)} experiments on {metrics} for all speakers")
     plt.legend()
-    plt.savefig(savedir / f"compare_{metric}.{fmt}", dpi=dpi)
-
-    if display:
-        plt.show()
-
-    plt.close("all")
+    savefig(plt.gcf(), savedir / f"{save_as}_all.{fmt}", overwrite=overwrite, dpi=dpi)
+    display and plt.show() or plt.close("all")
 
 
-def plot_learning_curve(dataframe, metrics, ax=None, label=None):
+def plot_learning_curve(dataframe, metrics, labels=None, ax=None):
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(12,8))
@@ -137,8 +145,11 @@ def plot_learning_curve(dataframe, metrics, ax=None, label=None):
         return_sorted=True
     )
 
+    if type(labels) is not list:
+        labels = [labels] * len(metrics)
+
     x = dataframe["train_size"]
-    for metric in metrics:
+    for metric, label in zip(metrics, labels):
         y = dataframe[metric]
         x, y = map(np.array, zip(*_smooth(y, x)))
         ax.plot(x, y, label=label or metric)
@@ -146,9 +157,17 @@ def plot_learning_curve(dataframe, metrics, ax=None, label=None):
     return ax
 
 
+def savefig(fig, filename, overwrite=False, dpi=300):
+    fig.tight_layout()
+    if Path(filename).exists() and not overwrite:
+        raise ValueError(f"{filename} exists and overwrite flag not set.")
+    fig.savefig(filename, dpi=dpi)
+
+
 def read_file(filename):
     with open(filename) as f:
-        return list(map(str.strip, f.readlines()))
+        lines = list(map(str.strip, f.readlines()))
+        return lines[0] if len(lines) == 1 else lines
 
 
 def line_count(filename):
@@ -159,15 +178,17 @@ def line_count(filename):
 def load_results(expdir, metrics):
 
     blockdirs = sorted(expdir.rglob("*blocks_exp*"))
-    scores = [
-        {metric: float(read_file(blockdir / metric)[0]) for metric in metrics}
-        for blockdir in blockdirs
-    ]
+    with mp.Pool(mp.cpu_count()) as pool:
+        scores = pd.DataFrame({
+            metric: pool.map(read_file, [blockdir/metric for blockdir in blockdirs])
+            for metric in metrics
+        })
+
     rgx = re.compile(r"^(?P<nblocks>\d+)blocks_exp(?P<expid>\d+)$")
     results = pd.DataFrame.from_dict(scores, orient="columns")
-    
+
     speakers = pd.Series(
-        list(map(lambda d: d.parent.name, blockdirs)), 
+        list(map(lambda d: d.parent.name, blockdirs)),
         name="speaker"
     )
 
