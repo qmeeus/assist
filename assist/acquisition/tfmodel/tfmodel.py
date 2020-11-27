@@ -394,4 +394,4 @@ def _sig_cross_entropy(v, x):
 
     #clip x to avoid nans
     x = np.clip(x, np.finfo(np.float32).eps, 1-np.finfo(np.float32).eps)
-    return -(v*np.log(x) + (1-v)*np.log(1-x)).sum()
+    return -(v * np.log(x) + (1-v) * np.log(1-x)).sum()

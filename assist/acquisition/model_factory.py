@@ -1,7 +1,8 @@
 '''@file model_factory.py
 contains the model factory'''
 
-def factory(name):
+
+def model_factory(name):
     '''model factory method
 
     args:
@@ -27,6 +28,12 @@ def factory(name):
         return nmf.NMF
     elif name == "svm":
         from assist.acquisition.svm import Classifier
+        return Classifier
+    elif name == "mlp":
+        from assist.acquisition.mlp import Classifier
+        return Classifier
+    elif name == "lstm":
+        from assist.acquisition.lstm import Classifier
         return Classifier
     else:
         raise Exception('unknown acquisition type %s' % name)

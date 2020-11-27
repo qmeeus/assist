@@ -3,7 +3,8 @@ Contains the Model class'''
 
 import os
 from abc import ABCMeta, abstractmethod
-from assist.tools.tools import default_conf
+from assist.tools import default_conf
+
 
 class Model(object):
     '''General speech acquisition model class'''
