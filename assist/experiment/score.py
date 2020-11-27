@@ -1,8 +1,6 @@
-'''@file score.py
-contais the score method'''
-
-from __future__ import division
 import os
+from collections import defaultdict
+
 
 def score(decoded, references):
     '''score the performance
@@ -16,18 +14,19 @@ def score(decoded, references):
         - a dictionary with scores per label
     '''
 
-    #the number of true positives
+    TP, FP, TN, FN = (defaultdict(int) for _ in range(4))
+    # The number of true positives
     correct = {}
-    #the number of positives = true positives + false positives
+    # The number of positives = true positives + false positives
     positives = {}
-    #the number of references = true positives + false negatives
+    # The number of references = true positives + false negatives
     labels = {}
 
-    #count the number of correct arguments in the correct tasks
-    for i, r in references.items():
-        d = decoded[i]
+    # Count the number of correct arguments in the correct tasks
+    for uttid, r in references.items():
+        d = decoded[uttid]
 
-        #update positives
+        # Update positives
         if d.name not in positives:
             positives[d.name] = [0, {}]
         positives[d.name][0] += 1

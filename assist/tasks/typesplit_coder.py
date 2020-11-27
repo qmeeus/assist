@@ -1,22 +1,14 @@
-'''@file typesplit_coder.py
-contains the TypeSplitCoder class'''
-
 import numpy as np
-from assist.tasks.read_task import Task
-from assist.tasks import coder
 import random
+
+from assist.tasks import Task, coder
+from assist.tools import logger
+
 
 class TypeSplitCoder(coder.Coder):
     ''' a Coder that does not shares the places for args with the same type'''
 
     def __init__(self, structure, conf):
-        '''Coder constructor
-
-        Args:
-            structure: a Structure object
-        '''
-
-        #super constructor
         super(TypeSplitCoder, self).__init__(structure, conf)
 
         if self.conf['tasklabel'] == 'True':
@@ -49,24 +41,24 @@ class TypeSplitCoder(coder.Coder):
         #save the number of labels
         self.numlabels = index
 
-    def encode(self, task, noisetype = 'None', noiseprob = 0.0 ):
-        '''encode the task representation into a vector
-
-        Args:
-            task: the task reresentation as a Task object
-            noisetype:
-                'None': noise-free encoding; noiseprob ignored
-                'Deletion': one of the 1-s in the encoded vector replaced with 0 w.p. noiseprob
-                'Insertion': one of the 0-s in the encoded vector replaced with 1 w.p. noiseprob
-                'Value': EVERY encoded slot value is replaced with another valid one (same task) w.p. noiseprob.
-                    Note the correct slot value cannot be drawn. If there is only one possible value for the slot, it is deleted.
-            noiseprob: 0.0 ... 1.0
-
+    def encode(self, task, noisetype='None', noiseprob=0.0 ):
+        '''
+        Encode the task representation into a 1D vector
+        Parameters
+        ----------
+        task : Task
+            An object representing a task (target intent)
+        noisetype: str
+            'None': noise-free encoding; noiseprob ignored
+            'Deletion': one of the 1-s in the encoded vector replaced with 0 w.p. noiseprob
+            'Insertion': one of the 0-s in the encoded vector replaced with 1 w.p. noiseprob
+            'Value': EVERY slot value is replaced with another valid one (same task) w.p. noiseprob.
+        noiseprob: float
+            Probabilty of replacing values in the encoded vector (between 0 and 1)
         Returns:
             the encoded task representation as a numpy array
         '''
 
-        #create the vector
         vector = np.zeros([self.numlabels])
 
         #check the correctness of the task representation

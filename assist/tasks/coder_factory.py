@@ -1,9 +1,6 @@
-'''@file coder_factory.py
-contains the coder factory'''
 
-from . import typeshare_coder, typesplit_coder
 
-def factory(name):
+def coder_factory(name):
     '''create a Coder object
 
     args:
@@ -14,8 +11,10 @@ def factory(name):
     '''
 
     if name == 'typeshare_coder':
-        return typeshare_coder.TypeShareCoder
+        from .typeshare_coder import TypeShareCoder
+        return TypeShareCoder
     elif name == 'typesplit_coder':
-        return typesplit_coder.TypeSplitCoder
+        from .typesplit_coder import TypeSplitCoder
+        return TypeSplitCoder
     else:
-        raise Exception('unknown coder %s' % name)
+        raise ValueError(f'Unknown coder:  {name}')

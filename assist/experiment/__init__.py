@@ -1,4 +1,2 @@
-'''@package experiment
-contains the code for running experiments'''
-
-from . import make_blocks, score
+from .make_blocks import make_blocks
+from .score import score, write_scores

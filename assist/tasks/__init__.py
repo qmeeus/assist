@@ -1,4 +1,4 @@
-'''@package tasks
-contains all the functionality for the tasks'''
-
-from . import argtypes, coder, read_task, structure, coder_factory
+from . import argtypes
+from .read_task import Task, read_task, to_string
+from .structure import Structure
+from .coder_factory import coder_factory
