@@ -1,91 +1,111 @@
-'''@file train_test.py
-do training followed by testing
-'''
-
-import os
-import sys
-sys.path.append(os.getcwd())
-import argparse
-import random
-from configparser import ConfigParser
 import numpy as np
-from assist.tasks.structure import Structure
-from assist.tasks import coder_factory
+import os
+from pathlib import Path
+import shutil
+import subprocess
+
 from assist.acquisition import model_factory
-from assist.tools import tools
+from assist.tasks import Structure, coder_factory
+from assist.tools import FeatLoader, condor_submit, logger, parse_line, read_config
 
-def main(expdir):
-    '''main function'''
+from .evaluate import evaluate
 
-    #check if this experiment has been completed
-    if os.path.isdir(os.path.join(expdir, 'model')):
-        return
 
-    #read the acquisition config file
-    acquisitionconf = ConfigParser()
-    acquisitionconf.read(os.path.join(expdir, 'acquisition.cfg'))
+def prepare_train(expdir, recipe):
 
-    #read the coder config file
-    coderconf = ConfigParser()
-    coderconf.read(os.path.join(expdir, 'coder.cfg'))
+    os.makedirs(expdir)
 
-    #create a task structure file
-    structure = Structure(os.path.join(expdir, 'structure.xml'))
+    for filename in ("acquisition.cfg", "coder.cfg", "train.cfg", "test.cfg", "structure.xml"):
+        logger.debug(f"Copy {filename} from {recipe} to {expdir}")
+        shutil.copy(recipe/filename, expdir/filename)
 
-    #create a coder
-    coder = coder_factory.factory(coderconf.get('coder', 'name'))(
-        structure, coderconf)
+    dataconf = read_config(recipe/"database.cfg")
 
-    #create an acquisition model
-    model = model_factory.factory(acquisitionconf.get('acquisition', 'name'))(
-        acquisitionconf, coder, expdir)
+    for subset in ("train", "test"):
+        prepare_subset(expdir, subset, dataconf)
 
-    print('prepping training data')
 
-    trainconf = ConfigParser()
-    trainconf.read(os.path.join(expdir, 'train.cfg'))
-    #apply the defaults
-    default = os.path.join(
-        os.path.dirname(os.path.realpath(__file__)),
-        'defaults','train.cfg')
-    if os.path.exists(default):
-        tools.default_conf(trainconf, default)
+def run_train(expdir, backend="local", cuda=False, do_eval=True):
+    if backend == "local":
+        train(expdir, cuda=cuda, do_eval=do_eval)
+    elif backend == "condor":
+        condor_submit(
+            expdir,
+            "train",
+            [expdir],
+            script_args="" if do_eval else "--no_eval",
+            cuda=cuda
+        )
+    else:
+        raise NotImplementedError(f"backend={backend}")
 
-    trainconf = dict(trainconf.items('train'))
 
-    # load the training features
-    features = dict()
-    for line in open(os.path.join(expdir, 'trainfeats')):
-        splitline = line.strip().split(' ')
-        featsfile = ' '.join(splitline[1:])
-        features[splitline[0]] = np.load(featsfile)
+def map_train(args):
+    train(*args)
 
-    #read the traintasks
-    taskstrings = dict()
-    with open(os.path.join(expdir, 'traintasks')) as f:
-        lines = f.readlines()
-        newlen = int(float(trainconf['sample'])*len(lines)+0.5)
-        if (newlen < len(lines)) and (newlen > 0):
-            lines = random.sample(lines,newlen)
-        for line in lines:
-            splitline = line.strip().split(' ')
-            taskstrings[splitline[0]] = ' '.join(splitline[1:])
 
-    #create lists of features and training tasks
-    #examples = {utt: (features[utt], taskstrings[utt]) for utt in taskstrings}
-    examples = {utt: (features[utt], taskstrings[utt]) for utt in taskstrings if utt in features}
+def train(expdir, cuda=False, do_eval=True):
+    logger.info(f"Train {expdir}")
 
-    print('training acquisition model')
+    acquisitionconf = read_config(expdir/"acquisition.cfg")
+    acquisitionconf.set("acquisition", "device", "cuda" if cuda else "cpu")
+
+    coderconf = read_config(expdir/"coder.cfg")
+    structure = Structure(expdir/'structure.xml')
+    Coder = coder_factory(coderconf.get('coder', 'name'))
+    coder = Coder(structure, coderconf)
+
+    Model = model_factory(acquisitionconf.get('acquisition', 'name'))
+    model = Model(acquisitionconf, coder, expdir)
+
+    features = FeatLoader(expdir/"trainfeats").to_dict()
+
+    with open(expdir/"traintasks") as traintasks:
+        taskstrings = {
+            uttid: task
+            for uttid, task in map(parse_line, traintasks.readlines())
+        }
+
+    examples = {
+        utt: (features[utt], taskstrings[utt])
+        for utt in taskstrings
+        if utt in features
+    }
     model.train(examples)
+    model.save(expdir/'model')
 
-    #save the trained model
-    model.save(os.path.join(expdir, 'model'))
+    train_set, = model.prepare_inputs([x[0] for x in examples.values()])
+    probs = model.predict_proba(*model.prepare_inputs(train_set.features))
+    y_pred = (probs > .5).astype(int)
+    from assist.tasks import read_task
+    y_true = np.array([coder.encode(read_task(example[1])) for example in examples.values()])
+    from sklearn.metrics import classification_report
+    for line in classification_report(y_true, y_pred).split("\n"):
+        logger.info(line)
 
-if __name__ == "__main__":
+    if do_eval:
+        evaluate(expdir, cuda=cuda)
 
-    #create the arguments parser
-    parser = argparse.ArgumentParser()
-    parser.add_argument('expdir')
-    args = parser.parse_args()
 
-    main(args.expdir)
+def prepare_subset(expdir, subset, dataconf):
+
+    conf = read_config(expdir/f"{subset}.cfg")
+
+    logger.debug(f"Create {subset}feats and {subset}tasks files")
+    with open(expdir/f"{subset}feats", "w") as feats, \
+            open(expdir/f"{subset}tasks", "w") as tasks:
+        for section in conf.get(subset, "datasections").split():
+            featfile, taskfile = (
+                Path(dataconf.get(section, key)) for key in ["features", "tasks"]
+            )
+            featfile = str(datafile).replace(datafile.suffix, ".scp")
+            for filepath, outfile in zip((featfile, taskfile), (feats, tasks)):
+                with open(filepath) as f:
+                    outfile.write(f.read())
+
+    nfeats, ntasks = (
+        subprocess.check_output(f"wc -l {expdir}/{filename}".split()).decode("utf-8").split()[0]
+        for filename in (f"{subset}feats", f"{subset}tasks")
+    )
+    logger.info(f"Written {nfeats} features and {ntasks} tasks to {expdir} ({subset})")
+

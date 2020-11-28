@@ -6,16 +6,25 @@ import sys
 sys.path.insert(0, os.getcwd())
 import shutil
 import argparse
+from pathlib import Path
 from configparser import ConfigParser
-import dataprep
-from assist.tools import tools
+from assist.scripts import dataprep
+from assist.tools import tools, logger
 
 
-def main(expdir, recipe, computing):
-    '''main function'''
+def main(options):
 
-    if not os.path.isdir(expdir):
-        os.makedirs(expdir)
+    expdir = Path(options["expdir"])
+    recipe = Path(options["recipe"])
+    backend = options["backend"]
+    cuda = options["cuda"]
+    njobs = options["njobs"]
+    overwrite = options["overwrite"]
+
+    if expdir.exists() and overwrite:
+        shutil.rmtree(expdir)
+
+    os.makedirs(expdir, exist_ok=True)
 
     #read the database configuration
     if not os.path.exists(os.path.join(recipe, 'database.cfg')):
@@ -29,7 +38,7 @@ def main(expdir, recipe, computing):
 
     for speaker in dataconf.sections():
 
-        print('%s data preparation' % speaker)
+        logger.info('%s data preparation' % speaker)
 
         #create the experiments directory
         if not os.path.isdir(os.path.join(expdir, speaker)):
@@ -49,12 +58,12 @@ def main(expdir, recipe, computing):
             os.path.join(expdir, speaker, 'features.cfg')
         )
 
-        if computing in ('condor', 'condor_gpu'):
+        if backend in ('condor', 'condor_gpu'):
             #create the outputs directory
             if not os.path.isdir(os.path.join(expdir, speaker, 'outputs')):
                 os.makedirs(os.path.join(expdir, speaker, 'outputs'))
 
-            if computing == 'condor_gpu':
+            if backend == 'condor_gpu':
                 jobfile = 'run_script_GPU.job'
             else:
                 jobfile = 'run_script.job'
@@ -72,14 +81,10 @@ if __name__ == '__main__':
 
     #parse the arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('expdir', help='the experiments directory')
-    parser.add_argument('recipe', help='the recipe directory')
-    parser.add_argument('--computing', '-c',
-                        help='the kind of computing you want to do')
-    args = parser.parse_args()
-
-    if args.computing and args.computing.strip() not in \
-            ('condor', 'condor_gpu', 'local'):
-        raise Exception('unknown computing mode %s' % args.computing)
-
-    main(args.expdir, args.recipe, args.computing or 'local')
+    parser.add_argument('expdir', type=Path, help='the experiments directory')
+    parser.add_argument('recipe', type=Path, help='the recipe directory')
+    parser.add_argument('--backend', default="local", choices=["local", "mp", "condor"])
+    parser.add_argument("--njobs", type=int, default=12)
+    parser.add_argument("--cuda", action="store_true", default=False)
+    parser.add_argument("--overwrite", action="store_true", default=False)
+    main(vars(parser.parse_args()))
