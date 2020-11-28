@@ -98,7 +98,7 @@ def evaluate(ctx, expdir, recipe):
 
     from assist.scripts.prepare_test import run_evaluate
 
-    # main(expdir, recipe, ctx.obj["BACKEND"], ctx.obj["CUDA"])
+    run_evaluate(expdir, backend=ctx.obj["BACKEND"], cuda=ctx.obj["CUDA"])
 
 
 @cli.command()
@@ -117,9 +117,9 @@ def prepare_dataset(ctx, expdir):
 @click.pass_context
 def prepare_database(ctx, expdir, recipe):
 
-    from assist.tasks import filesystem
+    from assist.scripts import prepare_database
 
-    filesystem.prepare_database(
+    prepare_database(
         expdir,
         recipe,
         backend=ctx.obj["BACKEND"],
