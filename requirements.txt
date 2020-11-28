@@ -1,0 +1,8 @@
+click
+configparser
+h5py
+logzero
+matplotlib
+scikit-learn
+scipy
+statsmodels
