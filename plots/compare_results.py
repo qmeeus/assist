@@ -41,7 +41,8 @@ def main(expdirs, result):
 
     #axis properties
     ax_params = {
-        'color':'black'
+        # 'color':'black'
+        # "c": "k"
     }
 
     #label properties
