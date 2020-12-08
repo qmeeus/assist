@@ -51,6 +51,9 @@ def cross_validation(ctx, expdir, recipe, resume):
         expdir.rglob("*blocks_exp*")
     ))
 
+    if not queue:
+        raise ValueError("Empty queue. Was resume flag set? Is the filesystem ok?")
+
     run_cross_validation(
         expdir,
         queue,
@@ -63,12 +66,15 @@ def cross_validation(ctx, expdir, recipe, resume):
 @cli.command()
 @click.argument("expdir", type=click.Path())
 @click.argument("recipe", type=click.Path(exists=True))
-@click.option("--no_eval", is_flag=True)
+@click.option("--no-eval", is_flag=True)
 @click.pass_context
 def train(ctx, expdir, recipe, no_eval):
 
     from assist.scripts import prepare_train, run_train
     from assist.tools import logger
+
+    if ctx.obj["NJOBS"] > 1:
+        raise ValueError("For more than one job, use `train_many`")
 
     expdir, recipe = map(Path, (expdir, recipe))
 
@@ -91,14 +97,31 @@ def train(ctx, expdir, recipe, no_eval):
 
 
 @cli.command()
+@click.argument("expdirs", nargs=-1, type=click.Path(exists=True))
+@click.option("--no-eval", is_flag=True)
+@click.pass_context
+def train_many(ctx, expdirs, no_eval):
+
+    from assist.scripts import run_train
+
+    run_train(
+        list(map(Path, expdirs)),
+        backend=ctx.obj["BACKEND"],
+        cuda=ctx.obj["CUDA"],
+        njobs=ctx.obj["NJOBS"],
+        do_eval=not(no_eval)
+    )
+
+
+@cli.command()
 @click.argument("expdir", type=click.Path())
 @click.argument("recipe", type=click.Path(exists=True))
 @click.pass_context
 def evaluate(ctx, expdir, recipe):
 
-    from assist.scripts.prepare_test import run_evaluate
+    from assist.scripts import run_evaluate
 
-    run_evaluate(expdir, backend=ctx.obj["BACKEND"], cuda=ctx.obj["CUDA"])
+    run_evaluate(Path(expdir), backend=ctx.obj["BACKEND"], cuda=ctx.obj["CUDA"])
 
 
 @cli.command()
@@ -117,9 +140,18 @@ def prepare_dataset(ctx, expdir):
 @click.pass_context
 def prepare_database(ctx, expdir, recipe):
 
-    from assist.scripts import prepare_database
+    from assist.scripts import run_prepare_database
+    from assist.tools import logger
 
-    prepare_database(
+    expdir, recipe = map(Path, (expdir, recipe))
+
+    if expdir.exists() and ctx.obj["OVERWRITE"]:
+        logger.warning(f"Deleting {expdir}")
+        shutil.rmtree(expdir)
+    elif expdir.exists():
+        raise ValueError(f"{expdir} exists and flag overwrite not set")
+
+    run_prepare_database(
         expdir,
         recipe,
         backend=ctx.obj["BACKEND"],
@@ -134,7 +166,7 @@ def prepare_database(ctx, expdir, recipe):
 @click.argument("recipe", type=click.Path(exists=True))
 @click.pass_context
 def prepare_data(ctx, expdir, recipe):
-    # backward compat
+    # backward compat TODO: remove
     from assist.scripts.prepare_dataprep import main
 
     main({
