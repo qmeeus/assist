@@ -11,19 +11,13 @@ from assist.tools import (
     symlink
 )
 
-from assist.scripts import map_prepare_features
+from .features import map_prepare_features
 
 
 def run_prepare_database(expdir, recipe, backend="local", njobs=-1, overwrite=False):
 
-    expdir, recipe = map(Path, (expdir, recipe))
-
-    if expdir.exists() and overwrite:
-        logger.warning(f"Deleting {expdir}")
-        shutil.rmtree(expdir)
-
     logger.debug(f"Create {expdir}")
-    os.makedirs(expdir, exist_ok=True)
+    os.makedirs(expdir)
 
     dataconf = read_config(recipe/"database.cfg")
     shutil.copy(recipe/"features.cfg", expdir/"features.cfg")

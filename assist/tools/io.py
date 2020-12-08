@@ -147,7 +147,6 @@ class FeatLoader:
         self._data = {}
 
     def _load(self, key):
-        logger.debug("Key missed. Go fish")
         _, path = self.strip_path(self.paths[key])
         load = load_hdf5 if path.suffix == ".hdf5" else load_numpy
         self._data.update(load(path))

@@ -41,6 +41,7 @@ def prepare_features(expdir):
         "precomputed": convert_hdf5,
         "text": encode_feats
     }.get(featconf.get("features", "name"), compute_feats)
+    logger.info(f"Feature created with {convert.__name__}")
     convert(expdir, featconf, dataconf, aggfunc=aggfunc)
 
 
@@ -62,19 +63,29 @@ def convert_hdf5(expdir, featconf, dataconf, aggfunc=None):
     save_features(data, target_file, storage_type)
 
 
-def encode_feats(expdir, featconf, dataconf, aggfunc=None, feature_name="features"):
+def encode_feats(expdir, featconf, dataconf, aggfunc=None):
 
     speaker = expdir.name
     target_file = Path(dataconf["features"])
     storage_type = featconf.get("features", "storage")
     model_string = featconf.get("features", "encoder")
 
+    import torch
     from transformers import AutoTokenizer, AutoModel
 
     logger.info(f"Loading tokenizer and model: {model_string}")
     tokenizer = AutoTokenizer.from_pretrained(model_string)
     encoder = AutoModel.from_pretrained(model_string)
     encoder.eval()
+
+    # HACK: Small workaround but would be better to use --cuda flag
+    device = torch.device(
+        "cuda" if os.environ.get("CUDA_VISIBLE_DEVICES", None) else "cpu"
+    )
+
+    logger.debug(f"Device: {device}")
+    encoder.to(device)
+
     for param in encoder.parameters():
         param.requires_grad = False
 
@@ -94,16 +105,22 @@ def encode_feats(expdir, featconf, dataconf, aggfunc=None, feature_name="feature
     )
 
     input_lengths = inputs["attention_mask"].sum(-1)
-    out = encoder(**inputs)
+
+    out = encoder(**{
+        k: v.to(device) if isinstance(v, torch.Tensor) else v 
+        for k, v in inputs.items()
+    })
+
     if len(out) == 2:
         data = out[featconf.get("features", "agg") == "pooled"]
     else:
         data, = out
 
     data = {
-        uttid: data[i, :length].numpy()
+        uttid: data[i, :length].cpu().numpy()
         for i, (uttid, length) in enumerate(zip(uttids, input_lengths))
     }
+    
     if aggfunc is not None:
         data = {uttid: aggfunc(array) for uttid, array in data.items()}
 
