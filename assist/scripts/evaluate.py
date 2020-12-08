@@ -59,7 +59,7 @@ def evaluate(expdir, cuda=False):
 
     decoded = model.decode(features)
 
-    assert list(decoded) == list(references)
+    assert not(set(decoded) - set(references))
     y_true = np.array([coder.encode(task) for task in references.values()])
     y_pred = np.array([coder.encode(task) for task in decoded.values()])
     from sklearn.metrics import classification_report
@@ -72,11 +72,8 @@ def evaluate(expdir, cuda=False):
             for name, task in decoded.items()
         ])
 
-    # TODO: return a dictionary from score instead
-    metric_names = ["precision", "recal", "f1", "macro precision", "macro recal", "macro f1"]
     metrics, scores = score(decoded, references)
-
-    for metric_name, metric in zip(metric_names, metrics):
+    for metric_name, metric in metrics.items():
         logger.info(f"{metric_name}: {metric:.4f}")
         with open(expdir/metric_name.replace(" ", ""), "w") as f:
             f.write(str(metric))

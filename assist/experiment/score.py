@@ -1,5 +1,5 @@
-import os
 from collections import defaultdict
+from pathlib import Path
 
 
 def score(decoded, references):
@@ -8,13 +8,11 @@ def score(decoded, references):
     args:
         decoded: the decoded tasks as a dictionary
         references: the reference tasks as a dictionary
-
     returns:
         - the scores as a tuple (precision, recal f1)
         - a dictionary with scores per label
     '''
 
-    TP, FP, TN, FN = (defaultdict(int) for _ in range(4))
     # The number of true positives
     correct = {}
     # The number of positives = true positives + false positives
@@ -22,44 +20,51 @@ def score(decoded, references):
     # The number of references = true positives + false negatives
     labels = {}
 
+    acc_count = 0
+    acc = 0        
+
     # Count the number of correct arguments in the correct tasks
-    for uttid, r in references.items():
-        d = decoded[uttid]
+    for uttid, reference in references.items():
+        prediction = decoded[uttid]
 
         # Update positives
-        if d.name not in positives:
-            positives[d.name] = [0, {}]
-        positives[d.name][0] += 1
-        for arg, val in d.args.items():
-            if arg not in positives[d.name][1]:
-                positives[d.name][1][arg] = {}
-            if val not in positives[d.name][1][arg]:
-                positives[d.name][1][arg][val] = 0
-            positives[d.name][1][arg][val] += 1
+        if prediction.name not in positives:
+            positives[prediction.name] = [0, {}]
+        positives[prediction.name][0] += 1
+        for arg_name, arg_value in prediction.args.items():
+            if arg_name not in positives[prediction.name][1]:
+                positives[prediction.name][1][arg_name] = {}
+            if arg_value not in positives[prediction.name][1][arg_name]:
+                positives[prediction.name][1][arg_name][arg_value] = 0
+            positives[prediction.name][1][arg_name][arg_value] += 1
 
         #update labels
-        if r.name not in labels:
-            labels[r.name] = [0, {}]
-        labels[r.name][0] += 1
-        for arg, val in r.args.items():
-            if arg not in labels[r.name][1]:
-                labels[r.name][1][arg] = {}
-            if val not in labels[r.name][1][arg]:
-                labels[r.name][1][arg][val] = 0
-            labels[r.name][1][arg][val] += 1
+        if reference.name not in labels:
+            labels[reference.name] = [0, {}]
+        labels[reference.name][0] += 1
+        for arg_name, arg_value in reference.args.items():
+            if arg_name not in labels[reference.name][1]:
+                labels[reference.name][1][arg_name] = {}
+            if arg_value not in labels[reference.name][1][arg_name]:
+                labels[reference.name][1][arg_name][arg_value] = 0
+            labels[reference.name][1][arg_name][arg_value] += 1
 
         #update correct correct
-        if r.name not in correct:
-            correct[r.name] = [0, {}]
-        if r.name == d.name:
-            correct[r.name][0] += 1
-            for arg, val in r.args.items():
-                if arg not in correct[r.name][1]:
-                    correct[r.name][1][arg] = {}
-                if val not in correct[r.name][1][arg]:
-                    correct[r.name][1][arg][val] = 0
-                if arg in d.args and val == d.args[arg]:
-                    correct[r.name][1][arg][val] += 1
+        if reference.name not in correct:
+            correct[reference.name] = [0, {}]
+        if reference.name == prediction.name:
+            correct[reference.name][0] += 1
+            for arg_name, arg_value in reference.args.items():
+                if arg_name not in correct[reference.name][1]:
+                    correct[reference.name][1][arg_name] = {}
+                if arg_value not in correct[reference.name][1][arg_name]:
+                    correct[reference.name][1][arg_name][arg_value] = 0
+                if arg_name in prediction.args and arg_value == prediction.args[arg_name]:
+                    correct[reference.name][1][arg_name][arg_value] += 1
+                    acc_count += 1
+            if acc_count == len(reference.args):
+                acc += 1
+            acc_count = 0
 
     #collect the scores
     numpositives = 0
@@ -87,86 +92,88 @@ def score(decoded, references):
         macrorecall += scores[t][0][1]
         macrof1 += scores[t][0][2]
 
-        for arg in labels[t][1]:
+        for arg_name in labels[t][1]:
 
-            scores[t][1][arg] = {}
+            scores[t][1][arg_name] = {}
 
-            if arg not in positives[t][1]:
-                positives[t][1][arg] = {}
-            if arg not in correct[t][1]:
-                correct[t][1][arg] = {}
+            if arg_name not in positives[t][1]:
+                positives[t][1][arg_name] = {}
+            if arg_name not in correct[t][1]:
+                correct[t][1][arg_name] = {}
 
-            for val in labels[t][1][arg]:
-                if val not in positives[t][1][arg]:
-                    positives[t][1][arg][val] = 0
-                if val not in correct[t][1][arg]:
-                    correct[t][1][arg][val] = 0
+            for val in labels[t][1][arg_name]:
+                if val not in positives[t][1][arg_name]:
+                    positives[t][1][arg_name][val] = 0
+                if val not in correct[t][1][arg_name]:
+                    correct[t][1][arg_name][val] = 0
 
                 #update global scores
-                numlabels += labels[t][1][arg][val]
-                numcorrect += correct[t][1][arg][val]
-                numpositives += positives[t][1][arg][val]
+                numlabels += labels[t][1][arg_name][val]
+                numcorrect += correct[t][1][arg_name][val]
+                numpositives += positives[t][1][arg_name][val]
 
-                scores[t][1][arg][val] = comp_score(
-                    correct[t][1][arg][val],
-                    labels[t][1][arg][val],
-                    positives[t][1][arg][val])
+                scores[t][1][arg_name][val] = comp_score(
+                    correct[t][1][arg_name][val],
+                    labels[t][1][arg_name][val],
+                    positives[t][1][arg_name][val])
 
                 numitems += 1
-                macroprec += scores[t][1][arg][val][0]
-                macrorecall += scores[t][1][arg][val][1]
-                macrof1 += scores[t][1][arg][val][2]
+                macroprec += scores[t][1][arg_name][val][0]
+                macrorecall += scores[t][1][arg_name][val][1]
+                macrof1 += scores[t][1][arg_name][val][2]
 
     s = comp_score(numcorrect, numlabels, numpositives)
+
     if numitems:
         macroprec /= numitems
         macrorecall /= numitems
         macrof1 /= numitems
+        
+    print(f"Accuracy: {acc}/{len(references)} = {acc/len(references):.5f}")
+    acc /= len(references)
 
-    return (s[0], s[1], s[2], macroprec, macrorecall, macrof1), scores
+    metrics = {
+        "precision": s[0],
+        "recal": s[1],
+        "f1": s[2],
+        "macro precision": macroprec,
+        "macro recal": macrorecall,
+        "macro f1": macrof1,
+        "accuracy": acc
+    }
 
-def write_scores(scores, location):
+    return metrics, scores
+
+def write_scores(scores, savedir):
     '''write the scores to a readable file'''
 
-    fid = open(os.path.join(location, 'label_f1'), 'w')
-    rid = open(os.path.join(location, 'label_recal'), 'w')
-    pid = open(os.path.join(location, 'label_precision'), 'w')
-    lid = open(os.path.join(location, 'label_labelcount'), 'w')
-    oid = open(os.path.join(location, 'label_positives'), 'w')
-    tid = open(os.path.join(location, 'label_truepositives'), 'w')
+    labels = {
+        "label_f1": "Label f1 scores",
+        "label_recal": "Label recal",
+        "label_precision": "Label precision",
+        "label_labelcount": "Label reference positive count",
+        "label_positives": "Label detected positive count",
+        "label_truepositive": "Label true positive count",
+    }
 
-    fid.write('Label f1 scores\n')
-    rid.write('Label recal\n')
-    pid.write('Label precision\n')
-    lid.write('Label reference positive count\n')
-    oid.write('Label detected positive count\n')
-    tid.write('Label true positive count\n')
+    for index, (filename, title) in enumerate(labels.items()):
+        with open(Path(savedir, filename), "w") as f:
+            f.write(f"{title}\n")
+            write_index(scores, index, "%f", f)
 
-    write_index(scores, 0, '%f', pid)
-    write_index(scores, 1, '%f', rid)
-    write_index(scores, 2, '%f', fid)
-    write_index(scores, 3, '%d', lid)
-    write_index(scores, 4, '%d', oid)
-    write_index(scores, 5, '%d', tid)
-
-    fid.close()
-    rid.close()
-    pid.close()
-    lid.close()
-    oid.close()
-    tid.close()
 
 def write_index(scores, index, fmt, fid):
     '''write a part of the scores'''
 
     for t in scores:
         fid.write(('\n%s: ' + fmt) % (t, scores[t][0][index]))
-        for arg in scores[t][1]:
-            fid.write('\n\t%s:' % arg)
-            for val in scores[t][1][arg]:
+        for arg_name in scores[t][1]:
+            fid.write('\n\t%s:' % arg_name)
+            for val in scores[t][1][arg_name]:
                 fid.write(
                     ('\n\t\t%s: ' + fmt) %
-                    (val, scores[t][1][arg][val][index]))
+                    (val, scores[t][1][arg_name][val][index]))
+
 
 def comp_score(correct, labels, positives):
     '''compute scores'''
