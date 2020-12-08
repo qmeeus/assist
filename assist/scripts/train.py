@@ -6,7 +6,7 @@ import subprocess
 
 from assist.acquisition import model_factory
 from assist.tasks import Structure, coder_factory
-from assist.tools import FeatLoader, condor_submit, logger, parse_line, read_config
+from assist.tools import FeatLoader, condor_submit, logger, mp_map, parse_line, read_config
 
 from .evaluate import evaluate
 
@@ -25,15 +25,19 @@ def prepare_train(expdir, recipe):
         prepare_subset(expdir, subset, dataconf)
 
 
-def run_train(expdir, backend="local", cuda=False, do_eval=True):
+def run_train(expdir, backend="local", cuda=False, do_eval=True, njobs=1):
+
     if backend == "local":
-        train(expdir, cuda=cuda, do_eval=do_eval)
+        if type(expdir) is not list:
+            expdir = [expdir]
+        N = len(expdir)
+        mp_map(map_train, expdir, [cuda] * N, [do_eval] * N, njobs=njobs)
     elif backend == "condor":
         condor_submit(
             expdir,
             "train",
             [expdir],
-            script_args="" if do_eval else "--no_eval",
+            script_args="" if do_eval else "--no-eval",
             cuda=cuda
         )
     else:
@@ -71,17 +75,21 @@ def train(expdir, cuda=False, do_eval=True):
         for utt in taskstrings
         if utt in features
     }
+
+    if not examples:
+        raise ValueError("No training examples")
+
     model.train(examples)
     model.save(expdir/'model')
 
-    train_set, = model.prepare_inputs([x[0] for x in examples.values()])
-    probs = model.predict_proba(*model.prepare_inputs(train_set.features))
-    y_pred = (probs > .5).astype(int)
-    from assist.tasks import read_task
-    y_true = np.array([coder.encode(read_task(example[1])) for example in examples.values()])
-    from sklearn.metrics import classification_report
-    for line in classification_report(y_true, y_pred).split("\n"):
-        logger.info(line)
+    # train_set, = model.prepare_inputs([x[0] for x in examples.values()])
+    # probs = model.predict_proba(*model.prepare_inputs(train_set.features))
+    # y_pred = (probs > .5).astype(int)
+    # from assist.tasks import read_task
+    # y_true = np.array([coder.encode(read_task(example[1])) for example in examples.values()])
+    # from sklearn.metrics import classification_report
+    # for line in classification_report(y_true, y_pred).split("\n"):
+    #     logger.info(line)
 
     if do_eval:
         evaluate(expdir, cuda=cuda)
@@ -98,10 +106,17 @@ def prepare_subset(expdir, subset, dataconf):
             featfile, taskfile = (
                 Path(dataconf.get(section, key)) for key in ["features", "tasks"]
             )
-            featfile = str(datafile).replace(datafile.suffix, ".scp")
-            for filepath, outfile in zip((featfile, taskfile), (feats, tasks)):
+            scpfile = str(featfile).replace(featfile.suffix, ".scp")
+            for filepath, outfile in zip((scpfile, taskfile), (feats, tasks)):
                 with open(filepath) as f:
-                    outfile.write(f.read())
+                    uttids, values = zip(*map(parse_line, f.readlines()))
+                    if not(uttids[0].startswith(section)):
+                        # Make sure that uttid has format $speaker_$uttid
+                        uttids = list(map(f"{section}_{{}}".format, uttids))
+
+                    outfile.writelines([
+                        f"{uttid} {value}\n" for uttid, value in zip(uttids, values)
+                    ])
 
     nfeats, ntasks = (
         subprocess.check_output(f"wc -l {expdir}/{filename}".split()).decode("utf-8").split()[0]
