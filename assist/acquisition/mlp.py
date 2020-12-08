@@ -95,7 +95,7 @@ class Classifier(BaseClassifier):
 
     def load(self, filename):
         logger.info(f"Loading model from {filename}")
-        self.model = torch.load(filename).to(self.device)
+        self.model = torch.load(str(filename), map_location=self.device)
 
     def save(self, filename):
         logger.info(f"Saving model to {filename}")
