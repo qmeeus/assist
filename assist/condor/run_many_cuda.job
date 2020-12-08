@@ -1,0 +1,20 @@
+Universe                = vanilla
+NiceUser                = true
+RequestCpus             = $(njobs)
+RequestMemory           = 16G
+Request_GPUs            = 1
++RequestWalltime        = 86400
+
+Requirements            = ( CUDAGlobalMemoryMb > 10000 )
+
+Initialdir              = /esat/spchtemp/scratch/qmeeus/repos/assist
+
+Executable              = run-env.sh
+Arguments               = $(verbose) --cuda --njobs $(njobs) $(command) $(options)
+
+Notification            = Error
+Log                     = $(outdir)/$(command).$(ProcID).log
+Output                  = $(outdir)/$(command).$(ProcID).out
+Error                   = $(outdir)/$(command).$(ProcID).err
+
+Queue options from $(queue_file)

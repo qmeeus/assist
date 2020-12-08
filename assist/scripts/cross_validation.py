@@ -59,11 +59,11 @@ def prepare_cross_validation(expdir, recipe):
         map_prepare_filesystem(opts)
 
 
-def run_cross_validation(expdir, queue, backend="local", njobs=12, cuda=False):
+def run_cross_validation(expdir, queue, backend="local", cuda=False, njobs=12):
     if backend == "local":
         mp_map(map_train, queue, [cuda] * len(queue), njobs=njobs)
     else:
-        condor_submit(expdir, "train", queue, cuda=cuda)
+        condor_submit(expdir, "train-many", queue, cuda=cuda, njobs=njobs)
 
 
 def map_prepare_filesystem(options):
@@ -102,7 +102,6 @@ def prepare_filesystem(expdir, speaker, coder, dataconf, expconf):
             blocks = make_blocks(tasks, expconf, feature_file.parent)
         except Exception as err:
             logger.error(f"Error with speaker {speaker}: {err}")
-            raise err
             return []
         with open(blocks_path, "wb") as blockfile:
             pickle.dump(blocks, blockfile)

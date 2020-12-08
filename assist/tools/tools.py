@@ -1,10 +1,9 @@
-'''@file tools.py
-contains some usefull tools for the scripts'''
-
+import multiprocessing as mp
+import numpy as np
 import os
 import shutil
+import subprocess
 import warnings
-import multiprocessing as mp
 
 from pathlib import Path
 from configparser import ConfigParser
@@ -51,15 +50,76 @@ def mp_map(func, *args, njobs=-1):
         return pool.map(func, zip(*args))
 
 
+def condor_submit(expdir, command, queue, command_options="", cuda=False, njobs=1, dry_run=False):
+    """
+    Start multiple condor jobs
+    Parameters
+    ----------
+    expdir : pathlike
+        The path where the condor files will be saved. It is passed to the script
+    command : str
+        The name of the command. It must be a valid assist command (see `python -m assist -h`)
+    queue : list
+        A list that contains the variable elements of the command (e.g. expdirs when run_train_many)
+    """
+    outdir = expdir/"outputs"
+    os.makedirs(outdir, exist_ok=True)
+    queue_file = outdir/"condor_queue.txt"
+
+    if njobs > 1 and command != "train-many":
+        raise NotImplementedError("Multiple jobs only allowed for train-many command")
+    elif njobs > 1:
+        tasks = np.array_split(queue, len(queue) // njobs)
+        tasklen = list(map(len, tasks))
+
+        logger.info(
+            f"{len(queue)} tasks allocated to {len(tasks)} jobs "
+            f"(between {min(tasklen)} and {max(tasklen)} tasks per job)"
+        )
+
+        queue = [" ".join(map(str, jobs)) for jobs in tasks]
+    else:
+        logger.info(f"Submit {len(queue)} jobs to condor")
+
+    queue = [f"{item} {command_options}" for item in queue]
+    
+    with open(queue_file, "w") as f:
+        f.writelines([f"{item} {command_options}\n" for item in queue])
+
+    device = "cuda" if cuda else "cpu"
+    submit_command = f"condor_submit assist/condor/run_many_{device}.job "
+
+    verbose = {10: "-vvv", 20: "-vv", 30: "-v"}.get(logger.getEffectiveLevel(), "")
+
+    submit_options = {
+        "njobs": njobs,
+        "verbose": verbose,
+        "command": command,
+        "outdir": outdir,
+        "queue_file": queue_file
+    }
+    
+    submit_command += " ".join([f"{key}={value}" for key, value in submit_options.items()])
+    run_shell(submit_command)
+    logger.warning(f"Outputs saved to {outdir}")
+
+
+
 def run_shell(command):
     """
     Execute a command in the shell.
     Parameters
     ----------
-    command : a valid UNIX command
+    command : Union[str, List[str]]
+        A valid UNIX command, either as a string or as a list of strings. Note that if the command
+        arguments must be protected (eg spaces), it is safer to pass the command as a list.
     """
-    logger.warning("Deprecated: use subprocess.check_output instead.")
-    return os.popen(command).read().strip()
+    if not isinstance(command, list):
+        command = command.split()
+    logger.warning(" ".join(command))
+    output = subprocess.check_output(command, shell=True).decode("utf-8")
+    for line in output.split("\n"):
+        logger.warning(line)
 
 
 def isin(items):
@@ -144,36 +204,3 @@ def default_conf(conf, default_path):
         for option in default.options(section):
             if not conf.has_option(section, option):
                 conf.set(section, option, default.get(section, option))
-
-
-def condor_submit(expdir, script, queue, script_args="", cuda=False):
-    """
-    Start multiple condor jobs
-    Parameters
-    ----------
-    expdir : pathlike
-        The path where the condor files will be saved. It is passed to the script
-    script : str
-        The name of the script. It must be a valid assist command (see help)
-    queue : list
-        A list of the options to pass to the script
-    """
-    outdir = expdir/"outputs"
-    os.makedirs(outdir, exist_ok=True)
-    queue_file = outdir/"condor_queue.txt"
-    with open(queue_file, "w") as f:
-        f.writelines(queue)
-    device = "cuda" if cuda else "cpu"
-    command = f"condor_submit assist/condor/run_many_{device}.job "
-    if not cuda:
-        command += f"ncpus={max(map(len, queue))} "
-    submit_options = {
-        "script": script,
-        "expdir": expdir,
-        "script_args": script_args,
-        "queue_file": queue_file
-    }
-    command += " ".join([f"{key}={value}" for key, value in submit_options.items()])
-    logger.info(command)
-    logger.warning(subprocess.check_output(command.split()).decode("utf-8"))
-    logger.warning(f"Outputs saved to {outdir}")
