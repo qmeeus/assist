@@ -1,30 +1,34 @@
 import click
+import matplotlib as mpl
 import os
-import re
-
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import multiprocessing as mp
 
-from functools import partial
 from pathlib import Path
-from statsmodels.nonparametric.smoothers_lowess import lowess
 
 
-@click.group()
+@click.group(context_settings={"help_option_names": ["-h", "--help"]})
+@click.option("-v", "--verbose", count=True)
 @click.option("--format", default="png", type=click.Choice(["png", "eps"]))
 @click.option("--dpi", default=300, type=int)
 @click.option("--display", is_flag=True)
 @click.option("--savedir", type=click.Path(), default="exp/figures")
 @click.pass_context
-def cli(ctx, format, dpi, display, savedir):
+def cli(ctx, verbose, format, dpi, display, savedir):
+    verbose = min(max(0, verbose), 3)
+    os.environ["LOGLEVEL"] = {
+        0: "ERROR", 1: "WARNING", 2: "INFO", 3: "DEBUG"
+    }.get(verbose)
+
+    if not display:
+        mpl.use("Agg")
+
     ctx.ensure_object(dict)
     ctx.obj["FORMAT"] = format
     ctx.obj["DPI"] = dpi
     ctx.obj["DISPLAY"] = display
     ctx.obj["SAVEDIR"] = Path(savedir)
     os.makedirs(savedir, exist_ok=True)
+    click.echo("LOGLEVEL: " + os.environ["LOGLEVEL"])
 
 
 @cli.command()
@@ -35,7 +39,10 @@ def cli(ctx, format, dpi, display, savedir):
 @click.option("--overwrite", is_flag=True)
 @click.pass_context
 def learning_curve(ctx, expdir, metrics, plot_speakers, save_as, overwrite):
-    
+
+    import matplotlib.pyplot as plt
+    from .tools import load_results, plot_learning_curve, savefig
+
     fmt = ctx.obj["FORMAT"]
     dpi = ctx.obj["DPI"]
     display = ctx.obj["DISPLAY"]
@@ -47,7 +54,7 @@ def learning_curve(ctx, expdir, metrics, plot_speakers, save_as, overwrite):
     save_as = save_as.format(dataset=expdir.parent.name, model=expdir.name)
 
     if plot_speakers:
-        
+
         for speaker in speakers:
 
             ax = plot_learning_curve(
@@ -65,7 +72,7 @@ def learning_curve(ctx, expdir, metrics, plot_speakers, save_as, overwrite):
         for speaker in speakers:
             ax = plot_learning_curve(
                 results.xs(speaker, level="speaker"), (metric,),
-                ax=ax, label=speaker
+                ax=ax, labels=speaker
             )
 
         ax.set_title(f"Learning curve {expdir.name} {metric}")
@@ -87,7 +94,10 @@ def learning_curve(ctx, expdir, metrics, plot_speakers, save_as, overwrite):
 @click.option("--overwrite", is_flag=True)
 @click.pass_context
 def compare_results(ctx, expdirs, metrics, plot_speakers, remove_incomplete, save_as, overwrite):
-    
+
+    import matplotlib.pyplot as plt
+    from .tools import load_results, plot_learning_curve, savefig
+
     fmt = ctx.obj["FORMAT"]
     dpi = ctx.obj["DPI"]
     display = ctx.obj["DISPLAY"]
@@ -130,82 +140,6 @@ def compare_results(ctx, expdirs, metrics, plot_speakers, remove_incomplete, sav
     plt.legend()
     savefig(plt.gcf(), savedir / f"{save_as}_all.{fmt}", overwrite=overwrite, dpi=dpi)
     display and plt.show() or plt.close("all")
-
-
-def plot_learning_curve(dataframe, metrics, labels=None, ax=None):
-
-    if ax is None:
-        fig, ax = plt.subplots(1, 1, figsize=(12,8))
-
-    _smooth = lambda y, x: lowess(
-        y, x + 1e-12 * np.random.randn(len(x)),
-        frac=1/3,
-        it=0,
-        delta=1.,
-        return_sorted=True
-    )
-
-    if type(labels) is not list:
-        labels = [labels] * len(metrics)
-
-    x = dataframe["train_size"]
-    for metric, label in zip(metrics, labels):
-        y = dataframe[metric]
-        x, y = map(np.array, zip(*_smooth(y, x)))
-        ax.plot(x, y, label=label or metric)
-
-    return ax
-
-
-def savefig(fig, filename, overwrite=False, dpi=300):
-    fig.tight_layout()
-    if Path(filename).exists() and not overwrite:
-        raise ValueError(f"{filename} exists and overwrite flag not set.")
-    fig.savefig(filename, dpi=dpi)
-
-
-def read_file(filename):
-    with open(filename) as f:
-        lines = list(map(str.strip, f.readlines()))
-        return lines[0] if len(lines) == 1 else lines
-
-
-def line_count(filename):
-    with open(filename) as f:
-        return len(list(filter(bool, map(str.strip, f.readlines()))))
-
-
-def load_results(expdir, metrics):
-
-    blockdirs = sorted(expdir.rglob("*blocks_exp*"))
-    with mp.Pool(mp.cpu_count()) as pool:
-        scores = pd.DataFrame({
-            metric: pool.map(read_file, [blockdir/metric for blockdir in blockdirs])
-            for metric in metrics
-        })
-
-    rgx = re.compile(r"^(?P<nblocks>\d+)blocks_exp(?P<expid>\d+)$")
-    results = pd.DataFrame.from_dict(scores, orient="columns")
-
-    speakers = pd.Series(
-        list(map(lambda d: d.parent.name, blockdirs)),
-        name="speaker"
-    )
-
-    blocks = (
-        pd.Series(list(map(lambda f: f.name, blockdirs)))
-        .str.extract(rgx).astype(int)
-    )
-
-    results["train_size"] = list(map(
-        line_count, map(
-            lambda p: p / "traintasks", blockdirs
-        )
-    ))
-
-    results = pd.concat([speakers, results, blocks], axis=1)
-    results.set_index(["speaker", "nblocks", "expid"], inplace=True)
-    return results.sort_index()
 
 
 if __name__ == "__main__":
