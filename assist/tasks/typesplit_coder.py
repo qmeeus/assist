@@ -41,7 +41,7 @@ class TypeSplitCoder(coder.Coder):
         #save the number of labels
         self.numlabels = index
 
-    def encode(self, task, noisetype='None', noiseprob=0.0 ):
+    def encode(self, task, noisetype=None, noiseprob=None):
         '''
         Encode the task representation into a 1D vector
         Parameters
@@ -59,6 +59,9 @@ class TypeSplitCoder(coder.Coder):
             the encoded task representation as a numpy array
         '''
 
+        noisetype = noisetype or self.conf["noisetype"]
+        noiseprob = noiseprob or self.conf["noiseprob"]
+        
         vector = np.zeros([self.numlabels])
 
         #check the correctness of the task representation

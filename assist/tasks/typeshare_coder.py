@@ -35,7 +35,7 @@ class TypeShareCoder(coder.Coder):
         #save the number of labels
         self.numlabels = index
 
-    def encode(self, task, noisetype = 'None', noiseprob = 0.0):
+    def encode(self, task, noisetype=None, noiseprob=None):
         '''encode the task representation into a vector
 
         Args:
@@ -51,6 +51,9 @@ class TypeShareCoder(coder.Coder):
         Returns:
             the encoded task representation as a numpy array
         '''
+
+        noisetype = noisetype or self.conf["noisetype"]
+        noiseprob = noiseprob or self.conf["noiseprob"]
 
         #create the vector
         vector = np.zeros([self.numlabels])

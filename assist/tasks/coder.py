@@ -34,7 +34,7 @@ class Coder(object):
         self.conf = dict(conf.items('coder'))
 
     @abstractmethod
-    def encode(self, task, noisetype, noiseprob):
+    def encode(self, task, noisetype=None, noiseprob=None):
         '''encode the task representation into a vector
 
         Args:
