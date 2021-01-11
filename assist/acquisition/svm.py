@@ -29,9 +29,9 @@ class Classifier(BaseClassifier):
         if dummy:
             return DummyClassifier(strategy="uniform")
         return CustomSVC(
-            C=float(self.config.get("acquisition", "C")),
-            kernel=self.config.get("acquisition", "kernel"),
-            tol=float(self.config.get("acquisition", "tol")),
+            C=float(self.config["C"]),
+            kernel=self.config["kernel"],
+            tol=float(self.config["tol"]),
             class_weight="balanced",
             probability=True
         )
