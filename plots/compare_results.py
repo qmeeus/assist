@@ -10,8 +10,10 @@ import sys
 import os
 import itertools
 import numpy as np
+import datetime as dt
 from statsmodels.nonparametric.smoothers_lowess import lowess
 import matplotlib.pyplot as plt
+import seaborn as sns
 from plots.get_results import get_results
 
 
@@ -20,17 +22,18 @@ def main(expdirs, result):
 
     expdirs = [os.path.normpath(expdir) for expdir in expdirs]
 
-    #colorlist = ['red', 'blue', 'cyan', 'green', 'yellow', 'magenta',
+    # colorlist = ['red', 'blue', 'cyan', 'green', 'yellow', 'magenta',
     #             'purple', 'pink', 'gold', 'navy', 'olive', 'grey']
     #linestyles = ['-']
 
+    palette = sns.color_palette(n_colors=len(expdirs))
     colorlist = ['black']
     linestyles = ['-', '--', ':', '-.']
 
     #colorlist = ['green', 'dimgrey', 'darkorange']
     #linestyles = ['-']
 
-    plot_speakers = True
+    plot_speakers = False
     remove_uncomplete = True
 
     #tick parameters
@@ -128,10 +131,13 @@ def main(expdirs, result):
 
     plt.figure('result')
     for i, f in enumerate(fit):
-        plt.plot(f[:, 0], f[:, 1],
-                 color=colorlist[i%len(colorlist)],
-                 linestyle=linestyles[i%len(linestyles)],
-                 label=expnames[i])
+        plt.plot(
+            f[:, 0], f[:, 1],
+            #  color=colorlist[i%len(colorlist)],
+            color=palette[i],
+            # linestyle=linestyles[i%len(linestyles)],
+            label=expnames[i]
+        )
 
     plt.yticks(**tick_params)
     plt.xticks(**tick_params)
@@ -141,6 +147,9 @@ def main(expdirs, result):
         text.set_color(lcolor)
     plt.xlabel('# Examples', **label_params)
     plt.ylabel('Accuracy', **label_params)
+    fn = f"exp/figures/compare_results_{dt.datetime.now():%Y%m%d%H%M%S}.png"
+    plt.savefig(fn)
+    print(f"Saved to {fn}")
     plt.show()
 
 
