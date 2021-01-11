@@ -1,6 +1,7 @@
 import numpy as np
 import pickle
 import warnings
+from configparser import ConfigParser
 from functools import partial
 from sklearn.metrics import log_loss
 
@@ -12,16 +13,23 @@ warnings.filterwarnings("ignore")
 
 class BaseClassifier:
 
-    def __init__(self, config, coder, expdir):
-        self.config = config
+    def __init__(
+        self,
+        config=None, 
+        coder=None, 
+        expdir=None
+    ):
+
+        if isinstance(config, ConfigParser):
+            self.config = dict(config["acquisition"].items())
+        else:
+            self.config = config
+
         self.coder = coder
         self.expdir = expdir
-        self.n_classes = coder.numlabels
+        self.n_classes = self.config.get("output_dim", None) or coder.numlabels  # Backward compat
         self.model = self.build()
-        self.noisetype = self.coder.conf["noisetype"]
-        self.noiseprob = float(self.coder.conf["noiseprob"])
-        logger.warning(self)
-        logger.info(f"Num classes: {self.n_classes}\tNoise: {self.noisetype} ({self.noiseprob})")
+        logger.debug(f"Num classes: {self.n_classes}")
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.expdir})"
@@ -45,14 +53,18 @@ class BaseClassifier:
         Returns : 1D array
             numpy array of dimension [n_classes,]
         """
-        return self.coder.encode(read_task(taskstring), self.noisetype, self.noiseprob)
+        return self.coder.encode(read_task(taskstring))
 
     def train(self, examples):
-        logger.info(f"{len(examples)} training examples")
+        logger.debug(f"{len(examples)} training examples")
         features, tasks = zip(*examples.values())
         target = [self.encode_target(task) for task in tasks]
-        inputs = self.prepare_inputs(features, target)
+        self.fit(features, target)
+
+    def fit(self, X, y):
+        inputs = self.prepare_inputs(X, y)
         self.train_loop(*inputs)
+        return self
 
     def prepare_inputs(self, features, labels=None):
         """
