@@ -117,11 +117,13 @@ class TypeShareCoder(coder.Coder):
             args = {}
             for arg in self.structure.tasks[task]:
                 argtype = self.structure.tasks[task][arg]
-                argvec = vector[self.typeindices[argtype].values()]
+                argnames, argindices = map(list, zip(*self.typeindices[argtype].items()))
+                import ipdb; ipdb.set_trace()
+                argvec = vector[argindices]
                 if not np.any(argvec):
                     continue
                 argid = np.argmax(argvec)
-                args[arg] = self.typeindices[argtype].keys()[argid]
+                args[arg] = argnames[argid]
 
             if not args and not vector[self.taskindices[task]]:
                 continue
