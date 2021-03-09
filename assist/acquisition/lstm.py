@@ -11,7 +11,7 @@ class RNN(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim=128, num_layers=1, dropout=.1, rnn_type="lstm"):
         super(RNN, self).__init__()
 
-        RNNClass = nn.GRU if rnn_type.lower() is "gru" else nn.LSTM
+        RNNClass = nn.GRU if rnn_type.lower() == "gru" else nn.LSTM
 
         self.rnn = RNNClass(
             input_size=input_dim,
@@ -103,6 +103,8 @@ class SequenceDataset:
         self.feature_lengths = [len(feats) for feats in features]
         self.features = features
         self.labels = labels
+        self.input_dim = features[0].shape[-1]
+        self.output_dim = labels[0].shape[-1]
 
     def __getitem__(self, idx):
         tensors = (torch.tensor(self.features[idx]), torch.tensor(self.feature_lengths[idx]))
