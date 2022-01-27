@@ -1,0 +1,20 @@
+Universe                = vanilla
+NiceUser                = true
+RequestCpus             = 8
+RequestMemory           = 24G
+Request_GPUs            = 1
++RequestWalltime        = 172800
+
+Requirements            = ( CUDAGlobalMemoryMb > 11000 )
+
+Initialdir              = /esat/spchtemp/scratch/qmeeus/repos/assist
+
+Executable              = finetune_encoder.sh
+Arguments               = exp/debug/vaccinbot/finetune_asr_train_test/20211018_182646 asr 0
+
+Notification            = Error
+Log                     = exp/debug/vaccinbot/train/condor.log
+Output                  = exp/debug/vaccinbot/train/condor.out
+Error                   = exp/debug/vaccinbot/train/condor.err
+
+Queue 1

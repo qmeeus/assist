@@ -1,0 +1,20 @@
+Universe                = vanilla
+NiceUser                = true
+RequestCpus             = 8
+RequestMemory           = 24G
+Request_GPUs            = 1
++RequestWalltime        = 172800
+
+Requirements            = ( CUDAGlobalMemoryMb > 13000 ) && ( machine != "vladimir.esat.kuleuven.be" )
+
+Initialdir              = /esat/spchtemp/scratch/qmeeus/repos/assist
+
+Executable              = finetune_smartlight.sh
+Arguments               = 
+
+Notification            = Error
+Log                     = exp/debug/smartlights/condor.log
+Output                  = exp/debug/smartlights/condor.out
+Error                   = exp/debug/smartlights/condor.err
+
+Queue 1

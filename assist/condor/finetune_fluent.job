@@ -1,0 +1,20 @@
+Universe                = vanilla
+NiceUser                = true
+RequestCpus             = 8
+RequestMemory           = 24G
+Request_GPUs            = 1
++RequestWalltime        = 172800
+
+Requirements            = ( CUDAGlobalMemoryMb > 13000 )
+
+Initialdir              = /esat/spchtemp/scratch/qmeeus/repos/assist
+
+Executable              = finetune_fluent.sh
+Arguments               = $(args)
+
+Notification            = Error
+Log                     = exp/debug/fluent/train/condor.log
+Output                  = exp/debug/fluent/train/condor.out
+Error                   = exp/debug/fluent/train/condor.err
+
+Queue args from finetune_fluent.args 

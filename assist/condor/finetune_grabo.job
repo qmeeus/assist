@@ -1,0 +1,20 @@
+Universe                = vanilla
+NiceUser                = true
+RequestCpus             = 8
+RequestMemory           = 24G
+Request_GPUs            = 1
++RequestWalltime        = 172800
+
+Requirements            = ( CUDAGlobalMemoryMb > 13000 ) && ( machine != "vladimir.esat.kuleuven.be" )
+
+Initialdir              = /esat/spchtemp/scratch/qmeeus/repos/assist
+
+Executable              = finetune_grabo.sh
+Arguments               = 
+
+Notification            = Error
+Log                     = exp/debug/grabo/train/condor.log
+Output                  = exp/debug/grabo/train/condor.out
+Error                   = exp/debug/grabo/train/condor.err
+
+Queue 1
