@@ -12,7 +12,7 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 from .logger import logger
 
 
-def plot_learning_curve(dataframe, metrics, labels=None, ax=None):
+def plot_learning_curve(dataframe, metrics, labels=None, markers=None, linestyles=None, ax=None):
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(12,8))
@@ -25,14 +25,20 @@ def plot_learning_curve(dataframe, metrics, labels=None, ax=None):
         return_sorted=True
     )
 
-    if type(labels) is not list:
+    if type(labels) != list:
         labels = [labels] * len(metrics)
 
+    if type(markers) != list:
+        markers = [markers] * len(metrics)
+
+    if type(linestyles) != list:
+        linestyles = [linestyles] * len(metrics)
+
     x = dataframe["train_size"]
-    for metric, label in zip(metrics, labels):
+    for metric, label, marker, linestyle in zip(metrics, labels, markers, linestyles):
         y = dataframe[metric]
         x, y = map(np.array, zip(*_smooth(y, x)))
-        ax.plot(x, y, label=label or metric)
+        ax.plot(x, y, label=label or metric, marker=marker, linestyle=linestyle)
 
     return ax
 

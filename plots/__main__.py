@@ -35,10 +35,10 @@ def cli(ctx, verbose, format, dpi, display, savedir):
 @click.argument("expdir", type=click.Path(exists=True))
 @click.option("-m", "--metrics", multiple=True, default=["f1"])
 @click.option("--plot_speakers", is_flag=True, help="Plot speakers separately")
-@click.option("--save_as", type=str, help="Output file", default="learning_curve_{dataset}_{model}")
+@click.option("--saveas", type=str, help="Output file", default="learning_curve_{dataset}_{model}")
 @click.option("--overwrite", is_flag=True)
 @click.pass_context
-def learning_curve(ctx, expdir, metrics, plot_speakers, save_as, overwrite):
+def learning_curve(ctx, expdir, metrics, plot_speakers, saveas, overwrite):
 
     import matplotlib.pyplot as plt
     from .tools import load_results, plot_learning_curve, savefig
@@ -51,7 +51,7 @@ def learning_curve(ctx, expdir, metrics, plot_speakers, save_as, overwrite):
 
     results = load_results(expdir, metrics)
     speakers = sorted(results.index.levels[0])
-    save_as = save_as.format(dataset=expdir.parent.name, model=expdir.name)
+    saveas = saveas.format(dataset=expdir.parent.name, model=expdir.name)
 
     if plot_speakers:
 
@@ -63,7 +63,7 @@ def learning_curve(ctx, expdir, metrics, plot_speakers, save_as, overwrite):
 
             ax.set_title(f"Learning curve {expdir.name} {speaker}")
             plt.legend()
-            outfile = savedir/f"{save_as}_{speaker}.{fmt}"
+            outfile = savedir/f"{saveas}_{speaker}.{fmt}"
             savefig(plt.gcf(), outfile, overwrite=overwrite, dpi=dpi)
 
     for metric in metrics:
@@ -77,7 +77,7 @@ def learning_curve(ctx, expdir, metrics, plot_speakers, save_as, overwrite):
 
         ax.set_title(f"Learning curve {expdir.name} {metric}")
         plt.legend()
-        outfile = savedir/f"{save_as}_all_{metric}.{fmt}"
+        outfile = savedir/f"{saveas}_all_{metric}.{fmt}"
         savefig(plt.gcf(), outfile, overwrite=overwrite, dpi=dpi)
 
     display and plt.show()
@@ -90,10 +90,11 @@ def learning_curve(ctx, expdir, metrics, plot_speakers, save_as, overwrite):
 @click.option("-m", "--metrics", multiple=True, default=["f1"])
 @click.option("--plot_speakers", is_flag=True, help="Plot speakers separately")
 @click.option("--remove_incomplete", is_flag=True, help="Remove experiments not performed for all speakers")
-@click.option("--save_as", type=str, help="Output file", default="compare_{dataset}")
+@click.option("--saveas", type=str, help="Output file", default="compare_{dataset}")
 @click.option("--overwrite", is_flag=True)
+@click.option("--display-names", type=str, default=None, help="List of names for legend, separated with ,")
 @click.pass_context
-def compare_results(ctx, expdirs, metrics, plot_speakers, remove_incomplete, save_as, overwrite):
+def compare_results(ctx, expdirs, metrics, plot_speakers, remove_incomplete, saveas, overwrite, display_names):
 
     import matplotlib.pyplot as plt
     from .tools import load_results, plot_learning_curve, savefig
@@ -105,7 +106,12 @@ def compare_results(ctx, expdirs, metrics, plot_speakers, remove_incomplete, sav
     expdirs = list(map(Path, expdirs))
     expnames = list(map(lambda p: p.name, expdirs))
 
-    save_as = save_as.format(dataset=expdirs[0].parent.name)
+    if display_names:
+        display_names = display_names.split(",")
+        if len(expdirs) != len(display_names):
+            raise click.BadParameter("Wrong number of names provided", param=display_names)
+
+    saveas = saveas.format(dataset=expdirs[0].parent.name)
 
     results = pd.concat([load_results(expdir, metrics) for expdir in expdirs], axis=1)
     results.columns = pd.MultiIndex.from_product([expnames, metrics + ("train_size",)])
@@ -127,19 +133,24 @@ def compare_results(ctx, expdirs, metrics, plot_speakers, remove_incomplete, sav
 
             ax.set_title(f"Compare {len(expnames)} experiments on {metrics} for {speaker}")
             plt.legend()
-            outfile = savedir/f"{save_as}_{speaker}.{fmt}"
+            outfile = savedir/f"{saveas}_{speaker}.{fmt}"
             savefig(plt.gcf(), outfile, overwrite=overwrite, dpi=dpi)
 
-    ax = None
-    for expname in expnames:
+    fig, ax = plt.subplots(1, 1, figsize=(4.5, 3.5))
+    markers = list(".+xd^v")
+    linestyles = ["-", "--", ":", "-."]
+    assert len(markers) >= len(expnames)
+    labels = None
+    for i, expname in enumerate(expnames):
         view_exp = results.xs(expname, level=0, axis=1)
-        labels = [f"{expname} ({metric})" for metric in metrics]
-        ax = plot_learning_curve(view_exp, metrics, labels=labels, ax=ax)
+        labels = [f"{expname} ({metric})" for metric in metrics] if not display_names else display_names[i]
+        ax = plot_learning_curve(view_exp, metrics, linestyles=linestyles[i%len(linestyles)], labels=labels, ax=ax)
 
-    ax.set_title(f"Compare {len(expnames)} experiments on {metrics} for all speakers")
+    # ax.set_title(f"Compare f1-score at increasing training sizes \n{len(expnames)} speaker-dependent experiments")
     plt.legend()
-    savefig(plt.gcf(), savedir / f"{save_as}_all.{fmt}", overwrite=overwrite, dpi=dpi)
-    display and plt.show() or plt.close("all")
+    savefig(fig, savedir / f"{saveas}_all.{fmt}", overwrite=overwrite, dpi=dpi)
+    display and plt.show()
+    plt.close("all")
 
 
 if __name__ == "__main__":

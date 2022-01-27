@@ -17,7 +17,7 @@ import seaborn as sns
 from plots.get_results import get_results
 
 
-def main(expdirs, result):
+def main(expdirs, metric):
     '''main function'''
 
     expdirs = [os.path.normpath(expdir) for expdir in expdirs]
@@ -72,7 +72,7 @@ def main(expdirs, result):
 
 
     #read all the results
-    results = [get_results(expdir, result) for expdir in expdirs]
+    results = [get_results(expdir, metric) for expdir in expdirs]
     expnames = [os.path.basename(expdir) for expdir in expdirs]
 
     #remove experiments that are not performed in all experiments
@@ -129,6 +129,9 @@ def main(expdirs, result):
     #smooth all the results
     fit = [smooth(s[:, 1], s[:, 0]) for s in sort]
 
+    markers = list(".+xd^v")
+    display_names = "MLM,TS,TNM,noKL,MSE".split(",")
+
     plt.figure('result')
     for i, f in enumerate(fit):
         plt.plot(
@@ -136,7 +139,8 @@ def main(expdirs, result):
             #  color=colorlist[i%len(colorlist)],
             color=palette[i],
             # linestyle=linestyles[i%len(linestyles)],
-            label=expnames[i]
+            marker=markers[i%len(markers)],
+            label=display_names[i]
         )
 
     plt.yticks(**tick_params)
@@ -145,9 +149,10 @@ def main(expdirs, result):
     l = plt.legend(**legend_params)
     for text in l.get_texts():
         text.set_color(lcolor)
-    plt.xlabel('# Examples', **label_params)
-    plt.ylabel('Accuracy', **label_params)
+    plt.xlabel('Num train examples', **label_params)
+    plt.ylabel(metric, **label_params)
     fn = f"exp/figures/compare_results_{dt.datetime.now():%Y%m%d%H%M%S}.png"
+    plt.tight_layout()
     plt.savefig(fn)
     print(f"Saved to {fn}")
     plt.show()
