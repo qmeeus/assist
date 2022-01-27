@@ -42,7 +42,7 @@ def save_features(
     storage = "hdf5" if storage == "hdf5" else "numpy"
     save_func = save_hdf5 if storage == "hdf5" else save_numpy
     if not features:
-        raise logger.error(f"No features to save: {filename}")
+        logger.error(f"No features to save: {filename}")
     filename = save_func(features, filename)
     logger.info(f"Features saved to {filename}")
     save_scp(filename, list(features), filename.parent/f"{filename.stem}.scp")
@@ -118,7 +118,9 @@ def load_hdf5(filename:Path, filter_keys:Optional[Union[List[str],Callable]]=Non
             filter_keys = keys
         elif callable(filter_keys):
             filter_keys = [key for key in keys if filter_keys(key)]
-        return {key: h5f[key][()] for key in keys if key in filter_keys}
+        data = {key: h5f[key][()] for key in keys if key in filter_keys}
+    remove_empty_arrays(data)
+    return data
 
 
 def load_numpy(filename:Path, filter_keys:Optional[Union[List[str],Callable]]=None) -> DataDict:
@@ -136,7 +138,16 @@ def load_numpy(filename:Path, filter_keys:Optional[Union[List[str],Callable]]=No
         if callable(filter_keys):
             filter_keys = [key for key in data if filter_keys(key)]
             data = {key: value for key, value in data if key in filter_keys}
+    remove_empty_arrays(data)
     return data
+
+
+def remove_empty_arrays(data):
+    empty = [k for k, v in data.items() if v.shape[0] == 0]
+    for k in empty:
+        logger.error(f"Empty array: {k}")
+        del data[k]
+
 
 
 class FeatLoader:

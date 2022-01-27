@@ -1,6 +1,8 @@
 from collections import defaultdict
 from pathlib import Path
 
+from assist.tools import logger
+
 
 def score(decoded, references):
     '''score the performance
@@ -129,7 +131,7 @@ def score(decoded, references):
         macrorecall /= numitems
         macrof1 /= numitems
         
-    print(f"Accuracy: {acc}/{len(references)} = {acc/len(references):.5f}")
+    logger.info(f"Accuracy: {acc}/{len(references)} = {acc/len(references):.5f}")
     acc /= len(references)
 
     metrics = {

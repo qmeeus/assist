@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import os
+import sys
 import torch
 
 from pathlib import Path
@@ -11,6 +13,8 @@ from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import TensorDataset, DataLoader
 from tqdm import tqdm
+
+sys.path.append(os.environ["HOME"] + "/.local/share/src/dotfiles/scripts/python/data-science")
 
 from tsne_nlp_feats import encode_texts, load_data
 

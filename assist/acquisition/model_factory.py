@@ -32,11 +32,14 @@ def model_factory(name):
     elif name == "mlp":
         from assist.acquisition.mlp import Classifier
         return Classifier
-    elif name == "lstm":
+    elif name in ("lstm", "gru"):
         from assist.acquisition.torch_models.rnn import Classifier
         return Classifier
-    elif name in ("att", "att_rnn"):
+    elif name in ("att", "att_rnn", "cls_att"):
         from assist.acquisition.torch_models.attention import Classifier
+        return Classifier
+    elif name == "enc_dec":
+        from assist.acquisition.torch_models.encoder_decoder import Classifier
         return Classifier
     else:
         raise Exception('unknown acquisition type %s' % name)

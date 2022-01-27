@@ -15,7 +15,7 @@ __all__ = [
 
 class SequenceDataset(Dataset):
 
-    def __init__(self, features, labels=None):
+    def __init__(self, features, labels=None, indices=None):
         self.feature_lengths = [len(feats) for feats in features]
         self.features = features
         self.labels = labels
@@ -24,7 +24,7 @@ class SequenceDataset(Dataset):
 
     def __getitem__(self, idx):
         if isinstance(idx, slice):
-            return self.data_collator([self[i] for i in range(idx.indices(len(self)))])
+            return self.data_collator([self[i] for i in range(*idx.indices(len(self)))])
 
         tensors = (torch.tensor(self.features[idx]), torch.tensor(self.feature_lengths[idx]))
         if self.labels is not None:
@@ -59,7 +59,7 @@ def pad_and_sort_batch(batch, sort=False):
     features = nn.utils.rnn.pad_sequence(features, batch_first=True, padding_value=0.)
     lengths = torch.stack(lengths, 0)
     tensors = tuple(torch.stack(tensor, 0) for tensor in tensors)
-    
+
     if sort:
         lengths, features, *tensors = sort_batch(lengths, features, *tensors)
 
@@ -75,11 +75,17 @@ def get_attention_mask(lengths):
 
 
 def count_parameters(model):
-    return sum(p.numel() for p in model.parameters())
+    nparams, ntrainable = 0, 0
+    for p in model.parameters():
+        nparams += p.numel()
+        if p.requires_grad:
+            ntrainable += p.numel()
+    return nparams, ntrainable
 
 
 def display_model(model, print_fn=print):
     for line in str(model).split("\n"):
         print_fn(line)
 
-    print_fn(f"# parameters: {count_parameters(model):,}")
+    nparams, ntrainable = count_parameters(model)
+    print_fn(f"# parameters: {nparams:,} (trainable: {ntrainable:,})")

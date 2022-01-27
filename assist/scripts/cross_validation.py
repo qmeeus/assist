@@ -45,6 +45,12 @@ def prepare_cross_validation(expdir, recipe):
     Coder = coder_factory(coderconf.get("coder", "name"))
     coder = Coder(structure, coderconf)
 
+    speakers = list(dataconf.sections())
+    if "speakers" in expconf and expconf["speakers"]:
+        speakers = list(filter(lambda spkr: spkr in expconf["speakers"], speakers))
+
+    logger.info(f"{len(speakers)} speakers selected for cross-validation")
+
     option_list = [
         dict(
             expdir=expdir,
@@ -52,18 +58,26 @@ def prepare_cross_validation(expdir, recipe):
             coder=coder,
             dataconf=dataconf,
             expconf=expconf
-        ) for speaker in dataconf.sections()
+        ) for speaker in speakers
     ]
 
     for opts in option_list:
         map_prepare_filesystem(opts)
 
 
-def run_cross_validation(expdir, queue, backend="local", cuda=False, njobs=12):
+def run_cross_validation(expdir, queue, backend="local", cuda=False, njobs=12, clean=False):
     if backend == "local":
+        # TODO: pass --clean to mapping function
         mp_map(map_train, queue, [cuda] * len(queue), njobs=njobs)
     else:
-        condor_submit(expdir, "train-many", queue, cuda=cuda, njobs=njobs)
+        condor_submit(
+            expdir,
+            "train-many",
+            queue,
+            command_options="--clean" if clean else "",
+            cuda=cuda,
+            njobs=njobs
+        )
 
 
 def map_prepare_filesystem(options):
@@ -90,7 +104,9 @@ def prepare_filesystem(expdir, speaker, coder, dataconf, expconf):
 
         tasks = [coder.encode(read_task(task)) for task in task_strings.values()]
 
-    assert tasks, "An error occured: no tasks"
+    if not tasks:
+        logger.error(f"Error with speaker {speaker}: no tasks")
+        return []
 
     tasks = np.array(tasks)
     blocks_path = speaker_dir/"blocks.pkl"
@@ -142,7 +158,7 @@ def prepare_filesystem(expdir, speaker, coder, dataconf, expconf):
             os.makedirs(subexpdir, exist_ok=True)
 
             for filename in ("acquisition.cfg", "coder.cfg", "structure.xml"):
-                symlink(expdir/filename, subexpdir/filename)
+                symlink(f"../../{filename}", subexpdir/filename, relative=True)
 
             if not (subexpdir/"trainfeats").exists():
                 for subset, ids in [("train", train_ids), ("test", test_ids)]:

@@ -118,7 +118,6 @@ class TypeShareCoder(coder.Coder):
             for arg in self.structure.tasks[task]:
                 argtype = self.structure.tasks[task][arg]
                 argnames, argindices = map(list, zip(*self.typeindices[argtype].items()))
-                import ipdb; ipdb.set_trace()
                 argvec = vector[argindices]
                 if not np.any(argvec):
                     continue
@@ -133,3 +132,58 @@ class TypeShareCoder(coder.Coder):
                 best = (Task(name=task, args=args), c)
 
         return best[0]
+
+
+def test():
+    import numpy as np
+    from io import StringIO
+    from pathlib import Path
+    from assist.tools import read_config
+    from .structure import Structure
+    from .read_task import read_task
+
+    structure = StringIO("""
+    <structure>
+        <types>
+            <color supertype="enumerable">
+                red
+                green
+                blue
+            </color>
+            <room supertype="enumerable">
+                apartment
+                bedroom
+            </room>
+        </types>
+        <tasks>
+            <SetLightColor room="room" color="color"/>
+            <DecreaseBrightness room="room"/>
+            <IncreaseBrightness room="room"/>
+        </tasks>
+    </structure>
+    """)
+    taskstrings = """
+    <SetLightColor room="apartment" color="red"/>
+    <DecreaseBrightness room="bedroom"/>
+    <IncreaseBrightness room="apartment"/>
+    <SetLightColor room="apartment" color="green"/>
+    """
+
+    expected = np.array([
+        [1, 0, 0, 1, 0, 0, 1, 0],
+        [0, 1, 0, 0, 0, 0, 0, 1],
+        [0, 0, 1, 0, 0, 0, 1, 0],
+        [1, 0, 0, 0, 1, 0, 1, 0]
+    ])
+
+    structure = Structure(structure)
+    cfg_file = Path(__file__).parent/"../../config/smart-light-close-en/lstm_128/coder.cfg"
+    cfg = read_config(cfg_file)
+    tasks = list(map(read_task, filter(bool, map(str.strip, taskstrings.split("\n")))))
+    coder = TypeShareCoder(structure, cfg)
+    encoded = np.array(list(map(coder.encode, tasks)), dtype=int)
+    assert (encoded == expected).all()
+
+
+if __name__ == "__main__":
+    test()

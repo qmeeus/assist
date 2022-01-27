@@ -1,3 +1,4 @@
+import json
 import multiprocessing as mp
 import numpy as np
 import os
@@ -14,6 +15,7 @@ from .logger import logger
 __all__ = [
     "condor_submit",
     "default_conf",
+    "load_json",
     "mp_map",
     "parse_line",
     "read_config",
@@ -82,7 +84,7 @@ def condor_submit(expdir, command, queue, command_options="", cuda=False, njobs=
         logger.info(f"Submit {len(queue)} jobs to condor")
 
     queue = [f"{item} {command_options}" for item in queue]
-    
+
     with open(queue_file, "w") as f:
         f.writelines([f"{item} {command_options}\n" for item in queue])
 
@@ -98,7 +100,7 @@ def condor_submit(expdir, command, queue, command_options="", cuda=False, njobs=
         "outdir": outdir,
         "queue_file": queue_file
     }
-    
+
     submit_command += " ".join([f"{key}={value}" for key, value in submit_options.items()])
     run_shell(submit_command)
     logger.warning(f"Outputs saved to {outdir}")
@@ -152,7 +154,12 @@ def read_config(path, default=None):
     return parser
 
 
-def symlink(source, link_name):
+def load_json(filename):
+    with open(filename) as jsonfile:
+        return json.load(jsonfile)
+
+
+def symlink(source, link_name, relative=True):
     '''
     create a symlink, if target exists remove
 
@@ -166,7 +173,10 @@ def symlink(source, link_name):
     if link_name.exists() or link_name.is_symlink():
         os.remove(link_name)
 
-    os.symlink(source.resolve(), link_name)
+    if not relative:
+        source = source.resolve()
+
+    os.symlink(source, link_name)
 
 
 def safecopy(src, dst):
@@ -204,3 +214,5 @@ def default_conf(conf, default_path):
         for option in default.options(section):
             if not conf.has_option(section, option):
                 conf.set(section, option, default.get(section, option))
+
+

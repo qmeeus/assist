@@ -65,7 +65,7 @@ def prepare_spkrdir(expdir, speaker, datafiles):
     with open(spkrdir/"database.cfg", "w") as f:
         spkrconf.write(f)
 
-    symlink(expdir/"features.cfg", spkrdir/"features.cfg")
+    symlink("../features.cfg", spkrdir/"features.cfg")
 
 
 def map_prepare_spkrdir(args):

@@ -61,7 +61,7 @@ class TypeSplitCoder(coder.Coder):
 
         noisetype = noisetype or self.conf["noisetype"]
         noiseprob = noiseprob or self.conf["noiseprob"]
-        
+
         vector = np.zeros([self.numlabels])
 
         #check the correctness of the task representation
@@ -122,10 +122,14 @@ class TypeSplitCoder(coder.Coder):
             a task representation'''
 
         #threshold the vector
-        threshold = min(float(self.conf['threshold']), np.max(vector))
-        vector = np.where(vector >= threshold, vector, np.zeros_like(vector))
+        threshold = float(self.conf['threshold'])
+        if threshold > 0:
+            vector = np.where(vector > threshold, vector, 0)
 
-        best = (None, 0)
+        if (vector == 0).all():
+            logger.error("Probability distribution is null")
+
+        best_candidate, best_score = (None, 0)
         for task in self.argindices:
 
             args = {}
@@ -146,12 +150,12 @@ class TypeSplitCoder(coder.Coder):
                     continue
 
             hypothesis = self.encode(Task(name=task, args=args))
-            c = cost(hypothesis, vector)
+            cost_ = cost(hypothesis, vector)
 
-            if best[0] is None or c < best[1]:
-                best = (Task(name=task, args=args), c)
+            if best_candidate is None or cost_ < best_score:
+                best_candidate, best_score = Task(name=task, args=args), cost_
 
-        return best[0]
+        return best_candidate
 
     @property
     def slotids(self):

@@ -3,6 +3,13 @@ contains the read_semantic function'''
 
 import xml.etree.ElementTree as ET
 from collections import namedtuple
+from dataclasses import dataclass
+
+
+# @dataclass
+# class Task:
+#     name:str
+#     args:dict
 
 Task = namedtuple('Task', ['name', 'args'])
 
@@ -25,4 +32,4 @@ def to_string(task):
     '''convert task to string'''
 
     root = ET.Element(task.name, attrib=task.args)
-    return ET.tostring(root)
+    return ET.tostring(root, encoding="unicode")

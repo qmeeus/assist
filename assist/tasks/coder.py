@@ -1,11 +1,8 @@
-'''@file coder.py
-contains the Coder class'''
-
 import os
 from abc import ABCMeta, abstractmethod
 from assist.tools.tools import default_conf
 
-class Coder(object):
+class Coder:
     ''' Task coder
 
     Encodes task representations into a vector and estimates the
@@ -20,18 +17,23 @@ class Coder(object):
             structure: a Structure object
         '''
 
-        #default conf file
-        default = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
-            'defaults',
-            type(self).__name__.lower() + '.cfg')
-
-        #apply the defaults
-        if os.path.exists(default):
-            default_conf(conf, default)
-
         self.structure = structure
-        self.conf = dict(conf.items('coder'))
+        # TODO: Remove configargparse dep and replace with json/yaml files and plain dict
+        if type(conf) != dict:
+            #default conf file
+            default = os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                'defaults',
+                type(self).__name__.lower() + '.cfg')
+
+            #apply the defaults
+            if os.path.exists(default):
+                default_conf(conf, default)
+
+            self.conf = dict(conf.items('coder'))
+
+        else:
+            self.conf = conf
 
     @abstractmethod
     def encode(self, task, noisetype=None, noiseprob=None):

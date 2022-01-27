@@ -61,34 +61,48 @@ def train(expdir, cuda=False, do_eval=True):
 
     Model = model_factory(acquisitionconf.get('acquisition', 'name'))
     model = Model(acquisitionconf, coder, expdir)
+    model.display(logger.info)
 
-    features = FeatLoader(expdir/"trainfeats").to_dict()
+    trainfeats = FeatLoader(expdir/"trainfeats").to_dict()
 
-    with open(expdir/"traintasks") as traintasks:
-        taskstrings = {
-            uttid: task
-            for uttid, task in map(parse_line, traintasks.readlines())
-        }
+    with open(expdir/"traintasks") as f:
+        traintasks = dict(map(parse_line, f))
 
-    examples = {
-        utt: (features[utt], taskstrings[utt])
-        for utt in taskstrings
-        if utt in features
+    train_set = {
+        utt: (trainfeats[utt], traintasks[utt])
+        for utt in traintasks
+        if utt in trainfeats
     }
 
-    if not examples:
+    if not train_set:
         raise ValueError("No training examples")
 
-    model.train(examples)
+    test_feats = FeatLoader(expdir/"testfeats").to_dict()
+
+    with open(expdir/"testtasks") as testtasks:
+        test_tasks = dict(map(parse_line, testtasks))
+
+    test_set = {
+        utt: (test_feats[utt], test_tasks[utt])
+        for utt in test_tasks
+        if utt in test_feats
+    }
+
+    if (expdir/"model").exists():
+        model.load(expdir/"model")
+
+    model.train(train_set, test_set)
     model.save(expdir/'model')
 
-    # train_set, = model.prepare_inputs([x[0] for x in examples.values()])
-    # probs = model.predict_proba(*model.prepare_inputs(train_set.features))
-    # y_pred = (probs > .5).astype(int)
     # from assist.tasks import read_task
-    # y_true = np.array([coder.encode(read_task(example[1])) for example in examples.values()])
-    # from sklearn.metrics import classification_report
-    # for line in classification_report(y_true, y_pred).split("\n"):
+    # from sklearn.metrics import classification_report, log_loss
+    # from operator import itemgetter
+    # from functools import partial
+
+    # predictions = model.encode(model._decode(list(map(itemgetter(0), train_set.values()))))
+    # target = model.encode(list(map(itemgetter(1), train_set.values())))
+
+    # for line in classification_report(target, predictions).split("\n"):
     #     logger.info(line)
 
     if do_eval:
@@ -109,7 +123,7 @@ def prepare_subset(expdir, subset, dataconf):
             scpfile = str(featfile).replace(featfile.suffix, ".scp")
             for filepath, outfile in zip((scpfile, taskfile), (feats, tasks)):
                 with open(filepath) as f:
-                    uttids, values = zip(*map(parse_line, f.readlines()))
+                    uttids, values = zip(*map(parse_line, f))
                     if not(uttids[0].startswith(section)):
                         # Make sure that uttid has format $speaker_$uttid
                         uttids = list(map(f"{section}_{{}}".format, uttids))

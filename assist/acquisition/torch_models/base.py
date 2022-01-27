@@ -6,7 +6,7 @@ from torch.utils.data import TensorDataset, DataLoader
 
 from assist.acquisition.classifier import BaseClassifier as _BaseClassifier
 from .utils import display_model
-from assist.tools import logger
+from assist.tools import logger, load_json
 
 
 class BaseClassifier(_BaseClassifier):
@@ -18,6 +18,7 @@ class BaseClassifier(_BaseClassifier):
         super(BaseClassifier, self).__init__(config, coder, expdir)
         self.epochs = int(self.config["epochs"])
         self.batch_size = int(self.config["batch_size"])
+        self.learning_rate = float(self.config.get("lr", 1e-2))
         self.iterations = int(self.config.get("iterations", 0))
         self.collate_fn = None
 
@@ -27,12 +28,37 @@ class BaseClassifier(_BaseClassifier):
     def prepare_inputs(self, features, labels=None):
         raise NotImplementedError
 
+    def get_optimizer(self):
+        return torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+
+    def get_learning_rate_scheduler(self, optimizer):
+        lr_scheduler_type = self.config.get("lr_scheduler", None)
+        if not lr_scheduler_type:
+            return
+        LRScheduler = getattr(torch.optim.lr_scheduler, lr_scheduler_type)
+        cfg = self.config.get("lr_scheduler_config", None)
+        sched_cfg = load_json(cfg) if cfg is not None else {}
+        return LRScheduler(optimizer, **sched_cfg)
+
+    def set_batch_size(self, train_size):
+        if train_size < self.batch_size:
+            logger.info(f"Setting batch size to {train_size}")
+            self.batch_size = train_size
+        # batch_sizes = {50: 8, 100: 16, 200: 32}
+        # for sz, bs in batch_sizes.items():
+        #     if train_size <= sz:
+        #         self.batch_size = bs
+        #         return
+
     def train_loop(self, dataset):
+        self.model.train()
+        self.set_batch_size(len(dataset))
         self.max_iter = self.get_num_iter(len(dataset), self.batch_size, self.iterations, self.epochs)
         epochs = self.iter_to_epochs(self.max_iter, len(dataset), self.batch_size)
         logger.info(f"{self.max_iter} iterations ~ {epochs:.2f} epochs / ({len(dataset)} examples / {self.batch_size} examples per batch)")
-        
-        optimizer = torch.optim.Adam(self.model.parameters())
+
+        optimizer = self.get_optimizer()
+        lr_scheduler = self.get_learning_rate_scheduler(optimizer)
 
         progress_bar = tqdm(
             total=self.max_iter,
@@ -46,13 +72,16 @@ class BaseClassifier(_BaseClassifier):
                 train_iter = iter(self.batch_iterator(dataset, is_train=True))
                 iteration += 1
                 *inputs, labels = next(train_iter)
-                train_loss = self.train_one_step(inputs, labels, optimizer) / len(labels)
+                train_loss = self.train_one_step(inputs, labels, optimizer, lr_scheduler) / len(labels)
                 progress_bar.postfix[1].update({"iter": iteration, "loss": train_loss})
                 progress_bar.update()
                 if iteration == self.max_iter:
                     break
 
-    def train_one_step(self, inputs, labels, optimizer):
+    def train_one_step(self, inputs, labels, optimizer, lr_scheduler=None):
+        if lr_scheduler is not None:
+            lr_scheduler.step()
+            logger.debug(f"LR: {lr_scheduler.get_lr()}")
         optimizer.zero_grad()
         *inputs, labels = self._recursive_to(*inputs, labels)
         loss, _ = self.model(*inputs, labels=labels)
@@ -74,6 +103,7 @@ class BaseClassifier(_BaseClassifier):
         raise NotImplementedError
 
     def predict_proba(self, dataset):
+        self.model.eval()
         with torch.no_grad():
             return torch.sigmoid(torch.cat([
                 self.model(*self._recursive_to(*inputs))
@@ -90,7 +120,7 @@ class BaseClassifier(_BaseClassifier):
 
     def _recursive_to(self, *tensors):
         return tuple(tensor.to(self.device) for tensor in tensors)
-    
+
     def display(self, print_fn=logger.info):
         display_model(self.model, print_fn)
 
@@ -100,7 +130,10 @@ class BaseClassifier(_BaseClassifier):
         iterations is the maximum number of batches
         epochs is the minimum number of times the same example will be observed during training
         """
-        # return 400 if dataset_size < 100 else 320
+        # if iterations:
+        #     epochs = BaseClassifier.iter_to_epochs(iterations, dataset_size, batch_size)
+        # return BaseClassifier.epochs_to_iter(
+        #     epochs * 3 if dataset_size < 200 else epochs, dataset_size, batch_size)
 
         assert any(n>0 for n in (iterations, epochs))
         if not(iterations):
@@ -118,28 +151,3 @@ class BaseClassifier(_BaseClassifier):
     @staticmethod
     def iter_to_epochs(n_iter, dataset_size, batch_size):
         return n_iter / (dataset_size / batch_size)
-        
-
-class SequenceClassifier(BaseClassifier):
-
-    def build(self):
-        self.device = torch.device(self.config["device"])
-        return RNN(
-            input_dim=int(self.config["input_dim"]),
-            output_dim=self.n_classes,
-            hidden_dim=int(self.config["hidden_dim"]),
-            num_layers=int(self.config["num_layers"]),
-            dropout=float(self.config["dropout"]),
-            rnn_type=self.config.get("rnn_type", "lstm")
-        ).to(self.device)        
-
-    def get_dataloader(self, dataset, is_train=True):
-        return DataLoader(
-            dataset,
-            shuffle=is_train,
-            batch_size=self.batch_size,
-            collate_fn=pad_and_sort_batch
-        )
-
-    def prepare_inputs(self, features, labels=None):
-        return SequenceDataset(features, labels=labels),
