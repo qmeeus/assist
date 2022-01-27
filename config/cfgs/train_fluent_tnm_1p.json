@@ -1,0 +1,8 @@
+{
+    "max_epochs": 200,
+    "batch_size": 2,
+    "optim_lr": 1e-4,
+    "es_patience": 20,
+    "es_criterion": "val_loss",
+    "es_lower_is_better": true
+}

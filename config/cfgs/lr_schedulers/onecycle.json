@@ -1,0 +1,9 @@
+{
+    "name": "OneCycleLR",
+    "config": {
+        "max_lr": 0.01, 
+        "steps_per_epoch": 5, 
+        "epochs": 4
+    }
+}
+

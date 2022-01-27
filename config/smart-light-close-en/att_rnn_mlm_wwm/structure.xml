@@ -1,0 +1,65 @@
+<structure>
+    <types>
+        <color supertype="enumerable">
+            green
+            red
+            blue
+        </color>
+        <room supertype="enumerable">
+            none
+            appartment
+            backyard
+            basement
+            bathroom
+            bedroom
+            boardroom
+            cellar
+            changing_room
+            child_bedroom
+            cubicle
+            dining_room
+            entrance
+            everywhere
+            flat
+            garage
+            garden
+            house
+            kids_bedroom
+            kitchen
+            large_meeting_room
+            laundry_room
+            living_room
+            meeting_room
+            office
+            pantry
+            parking
+            patio
+            room
+            shed
+            small_meeting_room
+            studio
+            toilets
+            vestibule
+            waiting_room
+        </room>
+        <brightness supertype="enumerable">
+            2
+            5
+            10
+            12
+            20
+            22
+            39
+            50
+            73
+        </brightness>
+    </types>
+    <tasks>
+        <DecreaseBrightness room="room"/>
+        <IncreaseBrightness room="room"/>
+        <SetLightBrightness room="room" brightness="brightness"/>
+        <SetLightColor room="room" color="color"/>
+        <SwitchLightOff room="room"/>
+        <SwitchLightOn room="room"/>
+    </tasks>
+</structure>

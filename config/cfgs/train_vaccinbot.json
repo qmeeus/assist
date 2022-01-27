@@ -1,0 +1,22 @@
+{
+    "max_epochs": 200,
+    "batch_size": 32,
+    "es_patience": 20,
+    "es_criterion": "val_error_rate",
+    "es_lower_is_better": true,
+    "optimizer": [
+        "Adam",
+        {
+            "lr": 1e-3
+        }
+    ],
+    "scheduler": [
+        "ReduceLROnPlateau",
+        {
+            "factor": 0.5,
+            "patience": 10,
+            "verbose": true,
+            "min_lr": 1e-5
+        }
+    ]
+}

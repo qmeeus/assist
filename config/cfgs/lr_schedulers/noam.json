@@ -1,0 +1,6 @@
+{
+    "name": "NoamLR",
+    "config": {
+        "warmup_steps": 5
+    }
+}

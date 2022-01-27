@@ -1,0 +1,9 @@
+{
+    "d_model": 64,
+    "rnn_type": "lstm",
+    "num_layers": 1,
+    "rnn_dropout": 0,
+    "num_heads": 8,
+    "attn_dropout": 0.1,
+    "attn_bias": true
+}

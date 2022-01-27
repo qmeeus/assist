@@ -1,0 +1,9 @@
+{
+    "name": "ReduceLROnPlateau",
+    "config": {
+        "factor": 0.5,
+        "patience": 10,
+        "verbose": true,
+        "min_lr": 1e-5
+    }
+}

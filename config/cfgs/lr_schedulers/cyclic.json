@@ -1,0 +1,7 @@
+{
+    "name": "CyclicLR",
+    "config": {
+        "base_lr": 0.01,
+        "max_lr": 0.1
+    }
+}

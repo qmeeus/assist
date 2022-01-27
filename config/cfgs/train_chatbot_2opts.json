@@ -1,0 +1,37 @@
+{
+    "max_epochs": 200,
+    "batch_size": 16,
+    "early_stopping": {
+        "patience": 3,
+        "criterion": "error_rate",
+        "lower_is_better": true,
+        "threshold": 0
+    },
+    "encoder_opt": [
+        "Adam",
+        {
+            "lr": 1e-3
+        }
+    ],
+    "decoder_opt": [
+        "Adam",
+        {
+            "lr": 1e-3
+        }
+    ],
+    "encoder_sched": [
+        "NoamLR",
+        {
+            "warmup_steps": 10000
+        }
+    ],
+    "decoder_sched": [
+        "ReduceLROnPlateau",
+        {
+            "factor": 0.1,
+            "patience": 3,
+            "verbose": true,
+            "min_lr": 1e-6
+        }
+    ]
+}

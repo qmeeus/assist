@@ -1,0 +1,7 @@
+{
+    "name": "StepLR",
+    "config": {
+        "step_size": 50,
+        "gamma": 0.1
+    }
+}

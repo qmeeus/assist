@@ -1,0 +1,7 @@
+{
+    "name": "att",
+    "d_model": 768,
+    "num_heads": 12,
+    "dropout": 0.1,
+    "bias": true
+}

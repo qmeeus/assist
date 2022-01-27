@@ -1,0 +1,8 @@
+{
+    "name": "rnn",
+    "rnn_type": "lstm",
+    "hidden_dim": 128,
+    "num_layers": 1,
+    "dropout": 0.6,
+    "batch_norm": false 
+}
