@@ -1,0 +1,11 @@
+Model						    Accuracy	 Error rate
+-------------------------------------------------------
+train_lstm_128					0.99341			0.00659
+train_lstm_128 (no es)			0.99288			0.00712
+train_lstm_128_mlm				0.99471			0.00529
+train_lstm_128_mse				0.61719			0.38281
+train_lstm_128_no_kl			0.47535			0.52465
+train_lstm_128_teachnomask		0.95465			0.04535
+-------------------------------------------------------
+Hierarchical transformers		0.996			0.004
+Light transformer capsules		0.988			0.012
