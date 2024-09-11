@@ -111,7 +111,7 @@ class TypeSplitCoder(coder.Coder):
 
         return vector
 
-    def decode(self, vector, cost):
+    def decode(self, probs, cost):
         '''get the most likely task representation for the vector
 
         Args:
@@ -124,9 +124,9 @@ class TypeSplitCoder(coder.Coder):
         #threshold the vector
         threshold = float(self.conf['threshold'])
         if threshold > 0:
-            vector = np.where(vector > threshold, vector, 0)
+            probs[probs < threshold] = 0
 
-        if (vector == 0).all():
+        if (probs == 0).all():
             logger.error("Probability distribution is null")
 
         best_candidate, best_score = (None, 0)
@@ -136,7 +136,7 @@ class TypeSplitCoder(coder.Coder):
             for arg in self.argindices[task]:
                 if arg == 'task':
                     continue
-                argvec = vector[list(self.argindices[task][arg].values())]
+                argvec = probs[list(self.argindices[task][arg].values())]
                 if not np.any(argvec):
                     continue
                 argid = np.argmax(argvec)
@@ -144,13 +144,13 @@ class TypeSplitCoder(coder.Coder):
 
             if not args and self.structure.tasks[task]:
                 if self.conf['tasklabel'] == 'True':
-                    if not vector[self.taskindices[task]]:
+                    if not probs[self.taskindices[task]]:
                         continue
                 else:
                     continue
 
             hypothesis = self.encode(Task(name=task, args=args))
-            cost_ = cost(hypothesis, vector)
+            cost_ = cost(hypothesis, probs)
 
             if best_candidate is None or cost_ < best_score:
                 best_candidate, best_score = Task(name=task, args=args), cost_
@@ -209,3 +209,15 @@ class TypeSplitCoder(coder.Coder):
                         valids[valname] = {argname:i}
 
         return valids
+    
+    @property
+    def slot_index(self):
+        # A mask where positions with the same index correspond to multiple values of the same slot
+        return sum(([i] * len(index) for i, index in enumerate(self.slotids.values())), [])
+    
+    @property
+    def intent_index(self):
+        # A mask where positions with the same index correspond to all slot positions from the same intent
+        slot_lengths = (sum(map(len, slots.values())) for slots in self.argindices.values())
+        return sum(([i] * l for i, l in enumerate(slot_lengths)), [])
+        

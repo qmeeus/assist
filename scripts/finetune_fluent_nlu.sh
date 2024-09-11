@@ -12,15 +12,15 @@ set -eo pipefail
 outdir=$1
 encoder=bert-base-uncased
 model_config=config/cfgs/lstm_fluent.json
-configs="config/cfgs/train_fluent_2opts_1%.json config/cfgs/early_stopping.json config/cfgs/sched_RLROP.json"
-dataset=/esat/spchtemp/scratch/qmeeus/repos/datasets/config/fluent.json
+configs="config/cfgs/train_fluent_2opts_1%.json config/cfgs/early_stopping.json config/cfgs/lr_schedulers/RLROP.json"
+dataset=/esat/spchtemp/scratch/qmeeus/repos/datasets/config/fluent-challenge.json
 dataset_size="${2:-1.}"
-input_key=asr
+input_key=asrtransformer
 output_key=tasks
 freeze="embeddings pooler"
 if [ "$3" == "--freeze" ]; then freeze="$freeze encoder"; fi
 
-python finetune_slu.py \
+python scripts/finetune_slu.py \
   --encoder $encoder \
   --outdir $outdir \
   --model-config $model_config \

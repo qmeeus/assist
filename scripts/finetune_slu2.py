@@ -1,4 +1,5 @@
 import argparse
+import datasets
 import json
 import logzero
 import numpy as np
@@ -12,6 +13,7 @@ from functools import partial
 from operator import itemgetter
 from pathlib import Path
 from sklearn.model_selection import KFold
+from transformers import AutoProcessor
 from torch import nn
 from torch.optim import Adam
 from torch.optim import lr_scheduler
@@ -37,8 +39,11 @@ from assist.tools import parse_line
 from train_lstm_fluent import TrainTestLoader
 from train_lstm_fluent import build_model
 from train_lstm_fluent import display_model
-sys.path.append("/esat/spchtemp/scratch/qmeeus/repos/datasets")
-import datasets
+
+
+
+# class Model(nn.Module)
+
 
 
 class EarlyStopping:
@@ -307,142 +312,6 @@ class Trainer:
         )
 
 
-class CrossValidation:
-
-    RND = 1903
-
-    @staticmethod
-    def parse_args(parser):
-        parser.add_argument_group("Cross Validation")
-        parser.add_argument("--kfold", type=int, default=0, help="zero: no cv")
-        parser.add_argument("--split-method", type=str, default=None, help="How to split data")
-        parser.add_argument("--data-dir", type=Path, default=None, help="Precomputed split location")
-        return parser
-
-    @classmethod
-    def from_args(cls, trainer, model, savedir, options):
-        return cls(
-            trainer,
-            model,
-            savedir,
-            k=options.kfold,
-            method=options.split_method,
-            data_dir=options.data_dir
-        )
-
-    def __init__(self, trainer, model, savedir, k=10, method=None, data_dir=None):
-        self.trainer = trainer
-        self.savedir = savedir
-        self.initial_model_path = f"{self.savedir}/inital_model.pt"
-        os.makedirs(self.savedir, exist_ok=True)
-        self.k = k
-        self.method = method
-        self.data_dir = data_dir
-
-        self.trainer.set_model(model)
-        torch.save(model, self.initial_model_path)
-
-    def initialize_trainer(self, fold):
-        self.trainer.checkpoint_dir = outdir = f"{self.savedir}/cv{fold}"
-        self.trainer.model = torch.load(self.initial_model_path)
-        if self.data_dir is not None:
-            path = self.data_dir/f"split{fold}/model.pt"
-            logger.info(f"Loading pretrained classifier from {path}")
-            self.trainer.model.classifier = torch.load(path)
-        self.trainer.early_stopping.initialize()
-        os.makedirs(outdir, exist_ok=True)
-        return outdir
-
-    def split_dataset(self, dataset, train_index, test_index):
-        return tuple(datasets.Subset(dataset, index) for index in (train_index, test_index))
-
-    def _split_speakers(self, dataset):
-        # Assume index of the form spkr_uttid
-        indices = dataset.indices
-        kfold = KFold(n_splits=self.k, shuffle=True, random_state=self.RND)
-        index_pairs = map(self.split_uttid, indices)
-        speakers = np.array(list(set(map(itemgetter(0), index_pairs))))
-        if len(speakers) < self.k:
-            logger.warn(f"Set number of fold equal to number of speakers ({len(speakers)})")
-            self.k = len(speakers)
-            kfold.n_splits = self.k
-
-        for split in kfold.split(speakers):
-            yield tuple(
-                np.array([
-                    i for i, idx in enumerate(indices)
-                    if self.split_uttid(idx)[0] in speakers[subset]
-                ]) for subset in split
-            )
-
-    def _split_utterances(self, dataset):
-        indices = dataset.indices
-        kfold = KFold(n_splits=self.k, shuffle=True, random_state=self.RND)
-        index_pairs = map(self.split_uttid, indices)
-        sentences = np.array(list(set(map(itemgetter(1), index_pairs))))
-        for split in kfold.split(sentences):
-            yield tuple(
-                np.array([
-                    i for i, idx in enumerate(indices)
-                    if self.split_uttid(idx)[1] in sentences[subset]
-                ]) for subset in split
-            )
-
-
-    def get_splits(self, dataset):
-        if self.method is None:
-            kfold = KFold(n_splits=self.k, shuffle=True, random_state=self.RND)
-            yield from kfold.split(np.arange(len(dataset)))
-            return
-
-        assert dataset.indices is not None, "Missing indices"
-        if self.method == "load":
-            yield from self._load_splits(dataset)
-        elif self.method == "speakers":
-            yield from self._split_speakers(dataset)
-        elif self.method == "utterances":
-            yield from self._split_speakers(dataset)
-        else:
-            raise NotImplementedError(self.method)
-
-    def _load_splits(self, dataset):
-        indices = dataset.indices
-        for splitdir in self.data_dir.glob("split*"):
-            with open(splitdir/"trainfeats") as f:
-                trainindex = set(map(lambda line: parse_line(line)[0], f))
-                trainmask = np.array([k in trainindex for k in indices])
-                trainindex = np.arange(len(indices))[trainmask]
-            with open(splitdir/"testfeats") as f:
-                testindex = set(map(lambda line: parse_line(line)[0], f))
-                testmask = np.array([k in testindex for k in indices])
-                testindex = np.arange(len(indices))[testmask]
-                assert (trainmask == ~testmask).all()
-            yield trainindex, testindex
-
-    @staticmethod
-    def split_uttid(uttid):
-        return uttid.split("_", maxsplit=1)
-
-    def run(self, dataset):
-
-        detailed_log = []
-        for i, (train_index, test_index) in enumerate(self.get_splits(dataset)):
-            outdir = self.initialize_trainer(i)
-            logzero.logfile(f"{outdir}/log")
-
-            train_set, test_set = self.split_dataset(dataset, train_index, test_index)
-            datasets.Dataset.save_splits(outdir, {"train": train_set, "test": test_set})
-            trainer.train(train_set, test_set, test_set)
-            log = trainer.evaluate(test_set)
-            detailed_log.append(log)
-            # if i == 2:  # DEBUG
-            #     break
-
-        logzero.logfile(f"{self.savedir}/log")
-        with open(f"{self.savedir}/log", "w") as f:
-            json.dump(detailed_log, f, indent=4)
-
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, nargs="+", help="JSON with train specific config")
@@ -452,12 +321,11 @@ def parse_args():
     parser.add_argument("--classifier", type=Path)
     parser.add_argument("--nlu", action="store_true", help="Use BERT instead of Speech Encoder")
     parser.add_argument("--outdir", type=Path, help="exp/fluent/train_lstm_128")
-    parser.add_argument("--split-sizes", type=str, default=None, help="Size of each split, eg. 7,1,2")
     parser.add_argument("--freeze-modules", type=str, nargs="+", help="Modules to freeze")
-    parser.add_argument("--dataset-size", type=float, default=1., help="Limit the size of the dataset")
-    parser = datasets.Dataset.parse_args(parser)
-    parser = CrossValidation.parse_args(parser)
-    # TODO: Add parse_args function in Model
+    parser.add_argument("--dataset-name", type=str, required=True, help="Valid identifier on HuggingFace")
+    parser.add_argument("--train-split-name", type=str, default="train", help="Name of train split")
+    parser.add_argument("--valid-split-name", type=str, default="valid", help="Name of valid split")
+    parser.add_argument("--test-split-name", type=str, default="test", help="Name of test split")
     options = parser.parse_args()
     config = {}
     for cfg in options.config:
@@ -466,6 +334,16 @@ def parse_args():
     options.config = config
     return options
 
+
+def load_dataset(options, **kwargs):
+    raw_datasets = datasets.DatasetDict()
+
+    for subset in ("train", "valid", "test"):
+        raw_datasets[split] = datasets.load_dataset(
+            options.dataset_name, split=getattr(options, subset), **kwargs
+        )
+
+    return raw_datasets
 
 if __name__ == "__main__":
 
@@ -506,7 +384,15 @@ if __name__ == "__main__":
 
         encoder = freeze_modules(encoder, options.freeze_modules)
 
-    train_set = data("train", p=options.dataset_size)
+    raw_datasets = load_dataset(options)
+    processor = AutoProcessor.from_pretrained("openai/whisper-small")
+
+    def process_example(example):
+        feats = processor(example["audio"]["array"], sampling_rate=example["audio"]["sampling_rate"], return_tensors="pt").input_features
+        labels =
+
+
+
 
     if options.classifier is not None:
         classifier = torch.load(options.classifier)
@@ -526,31 +412,6 @@ if __name__ == "__main__":
         device=options.device,
         **options.config
     )
-
-    if options.kfold:
-        CrossValidation.from_args(trainer, model, options.outdir, options).run(train_set)
-        # CrossValidation(
-        #     trainer,
-        #     model,
-        #     options.outdir,
-        #     k=options.kfold,
-        #     method=options.split_method
-        # ).run(train_set)
-    else:
-        if options.split_sizes and re.match("\d+/\d+/\d+", options.split_sizes):
-            sizes = list(map(float, options.split_sizes.split("/")))
-            sizes = [s / sum(sizes) for s in sizes]
-            train_set, valid_set, test_set = data.split("train", *sizes)
-            data.save_splits(options.outdir, {"train": train_set, "valid": valid_set, "test": test_set})
-        else:
-            valid_set = data("valid")
-            # if "test" in data.get_available_subsets():
-            #     test_set = data("test")
-            # else:
-            #     logger.warn("Evaluating on the validation set. Add test set to data configuration.")
-            #     test_set = valid_set
-            test_set = data("tests")
-
-        trainer.set_model(model)
-        trainer.train(train_set, valid_set, test_set)
+    trainer.set_model(model)
+    trainer.train(*vectorized_datasets.values())
 

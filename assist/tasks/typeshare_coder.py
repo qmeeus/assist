@@ -96,7 +96,7 @@ class TypeShareCoder(coder.Coder):
 
         return vector
 
-    def decode(self, vector, cost):
+    def decode(self, probs, cost):
         '''get the most likely task representation for the vector
 
         Args:
@@ -108,26 +108,26 @@ class TypeShareCoder(coder.Coder):
 
 
         #threshold the vector
-        threshold = min(float(self.conf['threshold']), np.max(vector))
-        vector = np.where(vector >= threshold, vector, np.zeros_like(vector))
+        threshold = min(float(self.conf['threshold']), 1e-5)
+        probs[probs < threshold] = 0
 
         best = (None, 0)
-        for task in self.structure.tasks:
+        for task, slots in self.structure.tasks.items():
 
             args = {}
-            for arg in self.structure.tasks[task]:
-                argtype = self.structure.tasks[task][arg]
-                argnames, argindices = map(list, zip(*self.typeindices[argtype].items()))
-                argvec = vector[argindices]
+            for slot, slot_name in slots.items():
+                fields, indices = map(list, zip(*self.typeindices[slot_name].items()))
+                argvec = probs[indices]
                 if not np.any(argvec):
                     continue
-                argid = np.argmax(argvec)
-                args[arg] = argnames[argid]
 
-            if not args and not vector[self.taskindices[task]]:
+                argid = np.argmax(argvec)
+                args[slot] = fields[argid]
+
+            if not args and not probs[self.taskindices[task]]:
                 continue
 
-            c = cost(self.encode(Task(name=task, args=args)), vector)
+            c = cost(self.encode(Task(name=task, args=args)), probs)
             if best[0] is None or c < best[1]:
                 best = (Task(name=task, args=args), c)
 

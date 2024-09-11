@@ -47,7 +47,11 @@ class ClassAttention(nn.Module):
     def forward(self, x):
         
         B, N, C = x.shape
-        q = self.q(x[:, 0]).unsqueeze(1).reshape(B, 1, self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
+        
+        x_cls, x = x[:, 0], x[:, 1:]
+        N -= 1
+        
+        q = self.q(x_cls).unsqueeze(1).reshape(B, 1, self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
         k = self.k(x).reshape(B, N, self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
 
         q = q * self.scale
@@ -127,15 +131,15 @@ class ClassAttnDecoder(nn.Module):
         
         self.transformer = nn.TransformerEncoder(
             nn.TransformerEncoderLayer(embed_dim, n_heads, dropout=dropout, activation="gelu"),
-            num_layers, norm=nn.LayerNorm(embed_dim)
+            num_layers, norm=nn.Identity()  #nn.LayerNorm(embed_dim)
         )
         
         self.cls_transformer = nn.ModuleList([
-            LayerScaleBlockCA(embed_dim, 1)
+            LayerScaleBlockCA(embed_dim, 1, norm_layer=nn.Identity)
             for _ in range(cls_layers)
         ])
         
-        self.norm = nn.LayerNorm(embed_dim)
+        # self.norm = nn.LayerNorm(embed_dim)
         self.classifier = nn.Linear(embed_dim, num_classes)
         
         self.loss_fct = nn.BCEWithLogitsLoss(reduction="sum")
@@ -167,7 +171,7 @@ class ClassAttnDecoder(nn.Module):
             cls_tokens = layer(x, cls_tokens)
             
         x = torch.cat([cls_tokens, x], dim=1)
-        x = self.norm(x)
+        # x = self.norm(x)
         return x[:, 0]
 
     def compute_loss(self, logits, labels):
